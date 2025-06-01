@@ -28,8 +28,7 @@
   <button type=button data-t="thick">🎲</button>
 </label><br>
 
-<!-- === hint block (no 🎲) === -->
-<label><input id=qmark type=checkbox checked> Draw hint under each grid</label><br>
+<!-- === hint block (always shown) === -->
 <label>Hint size&nbsp;(× scene&nbsp;H)
   <input id=qmsize type=range min=0.05 max=0.40 step=0.01 value=0.15>
 </label><br>
@@ -54,7 +53,7 @@
   const DEF = {
     w:1920, h:640, code:'1234',
     cells:4, rad:0.35, thick:0.05,
-    qmark:true, qmsize:0.15, qmgap:0.05
+    qmsize:0.15, qmgap:0.05
   };
 
   /* ---------- draw all ---------- */
@@ -66,14 +65,14 @@
     const sceneW = W / SCENES;
     const digits = ($('code').value||'0000').padEnd(4,'0').slice(0,4).split('').map(Number);
 
-    const opts = {
-      cells : +$('cells').value,
-      rFrac : +$('rad').value,
-      tFrac : +$('thick').value,
-      drawQM: $('qmark').checked,
-      qmFrac: +$('qmsize').value,
-      gapFrac:+$('qmgap').value
-    };
+      const opts = {
+        cells : +$('cells').value,
+        rFrac : +$('rad').value,
+        tFrac : +$('thick').value,
+        drawQM: true,
+        qmFrac: +$('qmsize').value,
+        gapFrac:+$('qmgap').value
+      };
 
     /* vertical separators */
     ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1;
