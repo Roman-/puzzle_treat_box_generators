@@ -1,0 +1,210 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Count Colored Circles – generator</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=1920 min=50></label>
+<label>H <input id=h type=number value=640  min=50></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{4}" maxlength=4></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Grid size
+  <input id=cells type=range min=3 max=10 step=1 value=4>
+  <button type=button data-t="cells">🎲</button>
+</label><br>
+
+<label>Circle size
+  <input id=rad type=range min=0.10 max=0.45 step=0.01 value=0.35>
+  <button type=button data-t="rad">🎲</button>
+</label><br>
+
+<label>Line thickness
+  <input id=thick type=range min=0.01 max=0.20 step=0.01 value=0.05>
+  <button type=button data-t="thick">🎲</button>
+</label><br>
+
+<!-- === hint block (no 🎲) === -->
+<label><input id=qmark type=checkbox checked> Draw hint under each grid</label><br>
+<label>Hint size&nbsp;(× scene&nbsp;H)
+  <input id=qmsize type=range min=0.05 max=0.40 step=0.01 value=0.15>
+</label><br>
+<label>Hint gap&nbsp;&nbsp;(× scene&nbsp;H)
+  <input id=qmgap  type=range min=0.00 max=0.20 step=0.01 value=0.05>
+</label><br>
+
+<button id=randAll type=button>🎲 Randomize all</button>
+<button id=reset   type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download"
+        style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+  /* ---------- shortcuts ---------- */
+  const $ = id => document.getElementById(id);
+  const ctx = $('can').getContext('2d');
+  const SCENES = 4, NAME = 'count_circles_color';
+  const COLORS = ['#ffd800', '#ff4040', '#4090ff', '#00aa40'];
+  const DEF = {
+    w:1920, h:640, code:'1234',
+    cells:4, rad:0.35, thick:0.05,
+    qmark:true, qmsize:0.15, qmgap:0.05
+  };
+
+  /* ---------- draw all ---------- */
+  function draw(){
+    const W = +$('w').value, H = +$('h').value;
+    $('can').width = W; $('can').height = H;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
+
+    const sceneW = W / SCENES;
+    const digits = ($('code').value||'0000').padEnd(4,'0').slice(0,4).split('').map(Number);
+
+    const opts = {
+      cells : +$('cells').value,
+      rFrac : +$('rad').value,
+      tFrac : +$('thick').value,
+      drawQM: $('qmark').checked,
+      qmFrac: +$('qmsize').value,
+      gapFrac:+$('qmgap').value
+    };
+
+    /* vertical separators */
+    ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1;
+    for (let i=1; i<SCENES; i++){
+      const x = i*sceneW;
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+    }
+
+    /* draw each scene */
+    digits.forEach((d,i)=> drawScene(i*sceneW, 0, sceneW, H, d, opts, i));
+  }
+
+  /* ---------- one scene ---------- */
+  function drawScene(x0, y0, W, H, digit, o, idx){
+    const margin = 0.1 * Math.min(W, H);                // 10 % of scene’s shorter side
+
+    const qmH   = o.drawQM ? H * o.qmFrac : 0;
+    const gapH  = o.drawQM ? H * o.gapFrac : 0;
+    const availH= H - qmH - gapH;                       // vertical room for the grid
+
+    /* usable width/height inside the margins */
+    const usableW = W - 2*margin;
+    const usableH = availH - 2*margin;
+    const cell    = Math.min(usableW, usableH) / o.cells;
+
+    const gridW   = cell * o.cells;
+    const gridH   = cell * o.cells;
+
+    /* centred positions */
+    const xGrid = x0 + (W - gridW) / 2;
+    const yGrid = o.drawQM ? y0 + margin
+            : y0 + (H - gridH) / 2;
+
+    const r   = cell * o.rFrac;
+    const line= cell * o.tFrac;
+
+    const tColor = COLORS[idx % COLORS.length];
+    const others = COLORS.filter(c => c !== tColor);
+
+    /* choose positions for the digit */
+    const total = o.cells * o.cells;
+    const pool  = Array.from({length: total}, (_,i)=>i);
+    for (let i=total-1;i>0;i--){ const j=Math.random()*(i+1)|0; [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    const target = new Set(pool.slice(0, Math.min(digit,total)));
+
+    /* draw circles */
+    ctx.save();
+    ctx.lineWidth = line;
+    ctx.strokeStyle = '#000';
+
+    for (let row=0; row<o.cells; row++){
+      for (let col=0; col<o.cells; col++){
+        const idx2 = row*o.cells + col;
+        const cx  = xGrid + col*cell + cell/2;
+        const cy  = yGrid + row*cell + cell/2;
+
+        const fill = target.has(idx2) ? tColor
+              : others[Math.random()*others.length|0];
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI*2);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    /* colored hint */
+    if (o.drawQM){
+      const qmY = yGrid + gridH + gapH;                 // grid-bottom + gap
+      const fontSz = o.qmFrac * H;
+      const hintText = '\u2013 ?';                      // – ?
+      const rHint = fontSz * 0.35;
+
+      ctx.save();
+      ctx.font = `${fontSz}px sans-serif`;
+      ctx.textBaseline = 'top';
+      const txtW = ctx.measureText(hintText).width;
+      const totW = rHint*2 + fontSz*0.3 + txtW;
+      const startX = x0 + (W - totW)/2;
+      const circleX = startX + rHint;
+      const textX = circleX + rHint + fontSz*0.3;
+
+      /* circle */
+      ctx.beginPath();
+      ctx.arc(circleX, qmY + fontSz/2, rHint, 0, Math.PI*2);
+      ctx.fillStyle = tColor;
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.stroke();
+
+      /* text */
+      ctx.fillStyle = '#000';
+      ctx.fillText(hintText, textX, qmY);
+      ctx.restore();
+    }
+  }
+
+  /* ---------- live preview ---------- */
+  oninput = draw;
+  draw();
+
+  /* ---------- random helpers ---------- */
+  function randCode () { $('code').value = (Math.random()*1e4|0).toString().padStart(4,'0'); }
+  function randCells() { $('cells').value = 3 + (Math.random()*8|0); }
+  function randRad  () { $('rad').value   = (Math.random()*0.35 + 0.10).toFixed(2); }
+  function randThick() { $('thick').value = (Math.random()*0.19 + 0.01).toFixed(2); }
+
+  const randFns = { code:randCode, cells:randCells, rad:randRad, thick:randThick };
+  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { randFns[b.dataset.t](); draw(); });
+
+  $('randAll').onclick = () => { Object.values(randFns).forEach(f=>f()); draw(); };
+
+  $('reset').onclick   = () => {
+    for (const k in DEF){
+      const el = $(k);
+      if (!el) continue;
+      if (el.type === 'checkbox') el.checked = DEF[k];
+      else                        el.value   = DEF[k];
+    }
+    draw();
+  };
+
+  /* ---------- click-to-download ---------- */
+  $('can').onclick = () => {
+    const c = ($('code').value||'0000').padEnd(4,'0').slice(0,4);
+    const a = document.createElement('a');
+    a.download = `${NAME}_${c}.png`;
+    a.href = $('can').toDataURL();
+    a.click();
+    randCode(); draw();
+  };
+</script>
