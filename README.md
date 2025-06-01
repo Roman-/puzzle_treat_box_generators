@@ -4,7 +4,7 @@
 
 ![The box](puzzle_treat_box.jpg)
 
-This repository contains js generators for these challanges.
+This repository contains js generators for these challenges.
 
 ## Generators
 - Each generator allows creating and downloading an image on the canvas. The image encodes 4 digits.
@@ -18,8 +18,8 @@ This repository contains js generators for these challanges.
 - Minimal html code, no styles
 - Canvas size controls
 - The 4-digit code text input
-- horisontal line
+- horizontal line
 - Creativity controls
 - "🎲 Randomize all" and "🔄 Restore defaults" button (only affects controls with 🎲 icon, including the code itself)
-- horisontal line
+- horizontal line
 - Canvas, with 1px grey border, cursor:pointer, title: click to download

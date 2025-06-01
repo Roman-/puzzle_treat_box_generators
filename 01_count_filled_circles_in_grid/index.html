@@ -1,0 +1,138 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Count Filled Circles</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=1920 min=50></label>
+<label>H <input id=h type=number value=640 min=50></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{4}" maxlength=4></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Grid size&nbsp;(cells/side)
+  <input id=cells type=range min=3 max=10 step=1 value=4>
+  <button type=button data-t="cells">🎲</button>
+</label><br>
+
+<label>Circle size&nbsp;(× cell)
+  <input id=rad type=range min=0.10 max=0.45 step=0.01 value=0.35>
+  <button type=button data-t="rad">🎲</button>
+</label><br>
+
+<label>Line thickness&nbsp;(× cell)
+  <input id=thick type=range min=0.01 max=0.20 step=0.01 value=0.05>
+  <button type=button data-t="thick">🎲</button>
+</label><br>
+
+<button id=randAll type=button>🎲 Randomize all</button>
+<button id=reset  type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download"
+        style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const ctx  = $('can').getContext('2d');
+  const SCENES = 4;
+  const NAME   = 'count_circles';
+  const DEF = {
+    w:1920, h:1080, code:'1234',
+    cells:4, rad:0.35, thick:0.05
+  };
+
+  /* ---------- draw ---------- */
+  function draw(){
+    const W=+$('w').value, H=+$('h').value;
+    $('can').width=W; $('can').height=H;
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+
+    const sceneW = W / SCENES, sceneH = H;
+    const code = ($('code').value||'0000').padEnd(4,'0').slice(0,4).split('').map(d=>+d);
+    const cells = +$('cells').value;
+    const radiusFrac = +$('rad').value;
+    const thickFrac  = +$('thick').value;
+    const margin = 0.1 * Math.min(sceneW,sceneH);
+
+    // light separators
+    ctx.strokeStyle='#ccc'; ctx.lineWidth=1;
+    for(let i=1;i<SCENES;i++){
+      const x=i*sceneW;
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+    }
+
+    // draw scenes
+    code.forEach((digit, idx) =>{
+      const offX = idx*sceneW;
+      drawScene(offX,0,sceneW,sceneH,digit,cells,radiusFrac,thickFrac,margin);
+    });
+  }
+
+  function drawScene(x0,y0,W,H,digit,cells,radF,thkF,margin){
+    const cell = (Math.min(W,H)-2*margin)/cells;
+    const r    = cell*radF;
+    const line = cell*thkF;
+
+    // choose which cells are filled
+    const total = cells*cells;
+    const pool = Array.from({length:total},(_,i)=>i);
+    for(let i=pool.length-1;i>0;i--){
+      const j=Math.random()*(i+1)|0; [pool[i],pool[j]]=[pool[j],pool[i]];
+    }
+    const filled = new Set(pool.slice(0,Math.min(digit,total)));
+
+    ctx.save();
+    ctx.lineWidth=line; ctx.strokeStyle='#000';
+    filled.forEach(idx=>{
+      const row=idx/cells|0, col=idx%cells;
+      const cx=x0+margin+col*cell+cell/2;
+      const cy=y0+margin+row*cell+cell/2;
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.fillStyle='#000'; ctx.fill();
+      ctx.stroke();
+    });
+
+    // outline empty circles
+    for(let row=0;row<cells;row++){
+      for(let col=0;col<cells;col++){
+        const idx=row*cells+col;
+        if(filled.has(idx)) continue;
+        const cx=x0+margin+col*cell+cell/2;
+        const cy=y0+margin+row*cell+cell/2;
+        ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+  oninput = draw; draw();
+
+  /* ---------- random helpers ---------- */
+  function randCode(){
+    $('code').value=(Math.random()*1e4|0).toString().padStart(4,'0');
+  }
+  function randCells(){ $('cells').value = 2 + (Math.random()*9|0); }
+  function randRad(){ $('rad').value = (Math.random()*0.35+0.1).toFixed(2); }
+  function randThick(){ $('thick').value = (Math.random()*0.19+0.01).toFixed(2); }
+  const randFns={code:randCode,cells:randCells,rad:randRad,thick:randThick};
+
+  document.querySelectorAll('[data-t]').forEach(b=>
+          b.onclick=()=>{randFns[b.dataset.t]();draw();});
+  $('randAll').onclick=()=>{Object.values(randFns).forEach(f=>f());draw();};
+  $('reset').onclick=()=>{for(const k in DEF) $(k).value=DEF[k];draw();};
+
+  /* ---------- click-to-download ---------- */
+  $('can').onclick=()=>{
+    const c=($('code').value||'0000').padEnd(4,'0').slice(0,4);
+    const a=document.createElement('a');
+    a.download=`${NAME}_${c}.png`;
+    a.href=$('can').toDataURL();
+    a.click();
+    randCode(); draw();
+  };
+</script>
