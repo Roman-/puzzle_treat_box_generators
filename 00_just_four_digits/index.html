@@ -1,0 +1,93 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Just Four Digits – generator</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=600 min=50></label>
+<label>H <input id=h type=number value=300 min=50></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{4}" maxlength=4></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Font
+  <select id=font>
+    <option>Arial</option><option>Helvetica</option><option>Comic Sans MS</option>
+    <option>Courier New</option><option>Times New Roman</option><option>Georgia</option>
+    <option>Verdana</option><option>Trebuchet MS</option>
+  </select>
+  <button type=button data-t="font">🎲</button>
+</label><br>
+
+<label>Font size (× min-side)
+  <input id=size type=range min=0.05 max=1 step=0.01 value=0.3>
+  <!-- no individual 🎲 – per spec -->
+</label><br>
+
+<label>Font color
+  <input id=color type=color value="#000000">
+  <button type=button data-t="color">🎲</button>
+</label><br>
+
+<button id=randAll type=button>🎲 Randomize all</button>
+<button id=reset  type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download"
+        style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const DEF = {w:600,h:300,code:'1234',font:'Arial',size:0.3,color:'#000000'};
+const NAME = 'just_four_digits';        // for file names
+
+// ---------- draw ----------
+function draw(){
+  const W=+$('w').value, H=+$('h').value, m=Math.min(W,H);
+  $('can').width=W; $('can').height=H;
+
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=$('color').value;
+  ctx.font=`${+$('size').value*m}px '${$('font').value}'`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+
+  const t=($('code').value||'0000').padEnd(4,'0').slice(0,4);
+  ctx.fillText(t,W/2,H/2);
+}
+oninput = draw; draw();
+
+// ---------- random helpers ----------
+function randCode(){ $('code').value=(Math.random()*1e4|0).toString().padStart(4,'0'); }
+function randFont(){
+  const o=[...$('font').options]; $('font').value=o[Math.random()*o.length|0].value;
+}
+function randColor(){        // dark colour (0–0x555555)
+  $('color').value='#'+(Math.random()*0x555556|0).toString(16).padStart(6,0);
+}
+const randFns={code:randCode,font:randFont,color:randColor};
+
+// individual 🎲
+document.querySelectorAll('[data-t]').forEach(b=>
+  b.onclick=()=>{randFns[b.dataset.t]();draw();});
+
+// 🎲 Randomize all (only controls that HAVE 🎲)
+$('randAll').onclick=()=>{Object.values(randFns).forEach(f=>f());draw();};
+
+// 🔄 Restore defaults
+$('reset').onclick=()=>{for(const k in DEF) $(k).value=DEF[k];draw();};
+
+// ---------- click-to-download ----------
+$('can').onclick=()=>{
+  const c=($('code').value||'0000').padEnd(4,'0').slice(0,4);
+  const a=document.createElement('a');
+  a.download=`${NAME}_${c}.png`;
+  a.href=$('can').toDataURL();
+  a.click();
+  randCode(); draw();          // new random code for next round
+};
+</script>
