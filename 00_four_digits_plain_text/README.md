@@ -1,5 +1,7 @@
 # Just four digits
 
+![Example](just_four_digits_1234.png)
+
 No challenge here - the 4 digits to open the box are given as is. This is the first stage to help understand how the puzzle treat box works - look at the digits, manipulate the lock and enjoy the treat.
 
 ## Customization

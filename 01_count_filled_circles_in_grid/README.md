@@ -1,5 +1,7 @@
 # Count circles – simple in grid
 
+![Example](count_circles_1234.png)
+
 Simple counting-based challenge. Each digit is encoded with a grid of circles.
 In the grid, each circle is either empty or filled.
 Count the circles in every scene (left-to-right) to reveal the code.

@@ -1,5 +1,7 @@
 # Count circles – with colors
 
+![Example](count_circles_color_1234.png)
+
 A colorful variation of the circles counting challenge. Each digit is hidden in a grid of filled circles. All circles are painted in one of four fixed colors: yellow, red, blue and green. For every scene you only need to count the circles painted with the scene's color.
 
 Below each grid there is a small marker circle filled with the color you have to count, followed by a dash and a question mark. Count the matching circles in each grid (left‑to‑right) to reveal the 4‑digit code.

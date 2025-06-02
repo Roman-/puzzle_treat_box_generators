@@ -23,3 +23,9 @@ This repository contains js generators for these challenges.
 - "🎲 Randomize all" and "🔄 Restore defaults" button (only affects controls with 🎲 icon, including the code itself)
 - horizontal line
 - Canvas, with 1px grey border, cursor:pointer, title: click to download
+
+## Latest challenge
+
+Click the image to open the folder with the generator and example.
+
+[![Colored circles example](02_count_filled_circles_with_color/count_circles_color_1234.png)](02_count_filled_circles_with_color/)
