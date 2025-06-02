@@ -1,4 +1,4 @@
-# Puzzle treat box challenges generators
+# Puzzle treat box challenges
 
 [PuzzleTreatBox](https://www.puzzletreatbox.com/) is a sturdy industrial safe secured with a large digit padlock. Each day, a child solves a puzzle challenge to reveal the 4-digit code, open the box, and claim a small reward inside.
 
