@@ -47,6 +47,9 @@
 
 <label><input id=dash type=checkbox> Dashed grid lines</label><br>
 
+<label><input id=floating type=checkbox> Floating bars</label><br>
+<label><input id=digits type=checkbox checked> Draw digits</label><br>
+
 <label>Label size (× H)
   <input id=font type=range min=0.02 max=0.08 step=0.01 value=0.04>
   <button type=button data-t="font">🎲</button>
@@ -68,6 +71,7 @@
     barW:0.60, outline:0.01,
     bar1:'#ff4040', bar2:'#4090ff', bar3:'#00aa40', bar4:'#ffd800',
     lineT:0.005, lineColor:'#888888', dash:false,
+    floating:false, digits:true,
     font:0.04
   };
 
@@ -76,7 +80,7 @@
     $('can').width = W; $('can').height = H;
     ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
 
-    const digits = ($('code').value||'0000').padEnd(4,'0').slice(0,4).split('').map(Number);
+    const digitsArr = ($('code').value||'0000').padEnd(4,'0').slice(0,4).split('').map(Number);
 
     const axisFont = +$('font').value * H;
     const marginV = axisFont * 1.5;
@@ -89,6 +93,9 @@
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
+    const showDigits = $('digits').checked;
+    const floating  = $('floating').checked;
+
     // grid lines and labels
     ctx.strokeStyle = $('lineColor').value;
     ctx.lineWidth = +$('lineT').value * H;
@@ -100,7 +107,7 @@
       ctx.lineTo(axisW + chartW, y);
       ctx.stroke();
       ctx.fillStyle = '#000';
-      ctx.fillText(i, axisW - 4, y);
+      if (showDigits) ctx.fillText(i, axisW - 4, y);
     }
     ctx.setLineDash([]);
 
@@ -111,9 +118,10 @@
     const colors = [$('bar1').value, $('bar2').value, $('bar3').value, $('bar4').value];
 
     for (let i=0;i<SCENES;i++){
-      const h = digits[i] * step;
+      const h = digitsArr[i] * step;
       const x = axisW + barArea*i + (barArea - barW)/2;
-      const y = H - marginV - h;
+      const baseVal = floating ? Math.floor(Math.random()*(10 - digitsArr[i])) : 0;
+      const y = H - marginV - step*(digitsArr[i] + baseVal);
       ctx.fillStyle = colors[i % colors.length];
       ctx.fillRect(x, y, barW, h);
       if (outline>0){
