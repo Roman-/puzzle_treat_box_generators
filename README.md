@@ -24,8 +24,8 @@ This repository contains js generators for these challenges.
 - horizontal line
 - Canvas, with 1px grey border, cursor:pointer, title: click to download
 
-## Latest challenge
+## Examples
 
-Click the image to open the folder with the generator and example.
+All examples encode 1234.
 
 [![Colored circles example](02_count_filled_circles_with_color/count_circles_color_1234.png)](02_count_filled_circles_with_color/)
