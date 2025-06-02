@@ -1,0 +1,164 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Bar Chart – generator</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=800 min=50></label>
+<label>H <input id=h type=number value=600 min=50></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{4}" maxlength=4></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Bar width (× scene&nbsp;W)
+  <input id=barW type=range min=0.40 max=0.90 step=0.01 value=0.60>
+  <button type=button data-t="barW">🎲</button>
+</label><br>
+
+<label>Bar outline (× scene&nbsp;H)
+  <input id=outline type=range min=0 max=0.05 step=0.001 value=0.01>
+  <button type=button data-t="outline">🎲</button>
+</label><br>
+
+<label>Bar 1 color <input id=bar1 type=color value="#ff4040">
+  <button type=button data-t="bar1">🎲</button>
+</label><br>
+<label>Bar 2 color <input id=bar2 type=color value="#4090ff">
+  <button type=button data-t="bar2">🎲</button>
+</label><br>
+<label>Bar 3 color <input id=bar3 type=color value="#00aa40">
+  <button type=button data-t="bar3">🎲</button>
+</label><br>
+<label>Bar 4 color <input id=bar4 type=color value="#ffd800">
+  <button type=button data-t="bar4">🎲</button>
+</label><br>
+
+<label>Grid line thickness (× H)
+  <input id=lineT type=range min=0.001 max=0.02 step=0.001 value=0.005>
+  <button type=button data-t="lineT">🎲</button>
+</label><br>
+
+<label>Grid line color <input id=lineColor type=color value="#888888">
+  <button type=button data-t="lineColor">🎲</button>
+</label><br>
+
+<label><input id=dash type=checkbox> Dashed grid lines</label><br>
+
+<label>Label size (× H)
+  <input id=font type=range min=0.02 max=0.08 step=0.01 value=0.04>
+  <button type=button data-t="font">🎲</button>
+</label><br>
+
+<button id=randAll type=button>🎲 Randomize all</button>
+<button id=reset   type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const ctx = $('can').getContext('2d');
+  const SCENES = 4, NAME = 'bar_chart';
+  const DEF = {
+    w:800, h:600, code:'1234',
+    barW:0.60, outline:0.01,
+    bar1:'#ff4040', bar2:'#4090ff', bar3:'#00aa40', bar4:'#ffd800',
+    lineT:0.005, lineColor:'#888888', dash:false,
+    font:0.04
+  };
+
+  function draw(){
+    const W = +$('w').value, H = +$('h').value;
+    $('can').width = W; $('can').height = H;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
+
+    const digits = ($('code').value||'0000').padEnd(4,'0').slice(0,4).split('').map(Number);
+
+    const axisFont = +$('font').value * H;
+    const marginV = axisFont * 1.5;
+    const axisW   = axisFont * 2;
+    const chartW  = W - axisW - axisFont; // small right margin
+    const chartH  = H - 2*marginV;
+    const step    = chartH / 10;
+
+    ctx.font = `${axisFont}px sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    // grid lines and labels
+    ctx.strokeStyle = $('lineColor').value;
+    ctx.lineWidth = +$('lineT').value * H;
+    if ($('dash').checked) ctx.setLineDash([6,4]);
+    for (let i=0;i<=9;i++){
+      const y = H - marginV - step*i;
+      ctx.beginPath();
+      ctx.moveTo(axisW, y);
+      ctx.lineTo(axisW + chartW, y);
+      ctx.stroke();
+      ctx.fillStyle = '#000';
+      ctx.fillText(i, axisW - 4, y);
+    }
+    ctx.setLineDash([]);
+
+    // bars
+    const barArea = chartW / SCENES;
+    const barW = barArea * +$('barW').value;
+    const outline = +$('outline').value * H;
+    const colors = [$('bar1').value, $('bar2').value, $('bar3').value, $('bar4').value];
+
+    for (let i=0;i<SCENES;i++){
+      const h = digits[i] * step;
+      const x = axisW + barArea*i + (barArea - barW)/2;
+      const y = H - marginV - h;
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.fillRect(x, y, barW, h);
+      if (outline>0){
+        ctx.lineWidth = outline;
+        ctx.strokeStyle = '#000';
+        ctx.strokeRect(x, y, barW, h);
+      }
+    }
+  }
+  oninput = draw; draw();
+
+  function randCode(){ $('code').value = (Math.random()*1e4|0).toString().padStart(4,'0'); }
+  function randBarW(){ $('barW').value = (0.4 + Math.random()*0.5).toFixed(2); }
+  function randOutline(){ $('outline').value = (Math.random()*0.05).toFixed(3); }
+  function randLineT(){ $('lineT').value = (Math.random()*0.019 + 0.001).toFixed(3); }
+  function randLineColor(){ $('lineColor').value = '#'+(Math.random()*0xffffff|0).toString(16).padStart(6,0); }
+  function randFont(){ $('font').value = (0.02 + Math.random()*0.06).toFixed(2); }
+  function randColor(id){ $(id).value = '#'+(Math.random()*0xffffff|0).toString(16).padStart(6,0); }
+
+  const randFns = {
+    code:randCode, barW:randBarW, outline:randOutline,
+    bar1:()=>randColor('bar1'), bar2:()=>randColor('bar2'),
+    bar3:()=>randColor('bar3'), bar4:()=>randColor('bar4'),
+    lineT:randLineT, lineColor:randLineColor, font:randFont
+  };
+  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { randFns[b.dataset.t](); draw(); });
+
+  $('randAll').onclick = () => { Object.values(randFns).forEach(f=>f()); draw(); };
+
+  $('reset').onclick = () => {
+    for (const k in DEF){
+      const el = $(k);
+      if (!el) continue;
+      if (el.type === 'checkbox') el.checked = DEF[k];
+      else                        el.value   = DEF[k];
+    }
+    draw();
+  };
+
+  $('can').onclick = () => {
+    const c = ($('code').value||'0000').padEnd(4,'0').slice(0,4);
+    const a = document.createElement('a');
+    a.download = `${NAME}_${c}.png`;
+    a.href = $('can').toDataURL();
+    a.click();
+    randCode(); draw();
+  };
+</script>
