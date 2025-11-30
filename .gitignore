@@ -14,3 +14,4 @@ cmake-build-*/
 [._]*.sw[a-p]
 tags
 
+# current project temp dir

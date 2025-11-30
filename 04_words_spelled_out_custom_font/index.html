@@ -1,0 +1,340 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Words Spelled Out – generator</title>
+<style>
+  @font-face {
+    font-family: 'Novem';
+    src: url('Novem-nALvR.ttf');
+  }
+
+  @font-face {
+    font-family: 'Shrooms';
+    src: url('Shrooms-lg65.ttf');
+  }
+
+  @font-face {
+    font-family: 'Groovy';
+    src: url('groovy-zodiac.demo.ttf');
+  }
+
+  @font-face {
+    font-family: 'Heavytal';
+    src: url('heavytal-personal-use.regular.ttf');
+  }
+
+  @font-face {
+    font-family: 'Metalico';
+    src: url('metalico-personal-use.regular.ttf');
+  }
+
+  body {
+    font-family: sans-serif;
+    max-width: 1000px;
+    margin: 20px auto;
+  }
+
+  label {
+    display: inline-block;
+    margin: 5px 10px 5px 0;
+  }
+
+  hr {
+    margin: 20px 0;
+    border: none;
+    border-top: 1px solid #ccc;
+  }
+
+  canvas {
+    border: 1px solid #999;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    max-width: 100%;
+  }
+
+  .controls {
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 8px;
+  }
+
+  .row {
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    margin-top: 0;
+  }
+</style>
+
+<h1>Words Spelled Out Puzzle</h1>
+
+<div class="controls">
+  <!-- === Dimensions === -->
+  <div class="row">
+    <label>Width <input id=w type=number value=1600 min=100 step=10></label>
+    <label>Height <input id=h type=number value=400 min=100 step=10></label>
+  </div>
+
+  <!-- === Puzzle Content === -->
+  <div class="row">
+    <label>Code (4-5 digits) <input id=code type=text value=1234 pattern="\d{4,5}" maxlength=5></label>
+    <button type=button data-t="code">🎲 Random Code</button>
+  </div>
+
+  <hr>
+
+  <!-- === Appearance === -->
+  <div class="row">
+    <label>Font
+      <select id=font>
+        <option value="Novem">Novem</option>
+        <option value="Shrooms">Shrooms</option>
+        <option value="Groovy">Groovy</option>
+        <option value="Heavytal">Heavytal</option>
+        <option value="Metalico">Metalico</option>
+        <option value="Arial">Arial (Fallback)</option>
+      </select>
+    </label>
+    <button type=button data-t="font">🎲 Random Font</button>
+  </div>
+
+  <div class="row">
+    <label>Main Word Size <input id=size type=range min=20 max=150 value=60
+        oninput="this.nextElementSibling.value = this.value"> <output>60</output>px</label>
+    <label>Color <input id=color type=color value="#000000"></label>
+  </div>
+
+  <!-- === Spacing & Extras === -->
+  <div class="row">
+    <label>Word Spacing <input id=wordSpacing type=range min=10 max=200 value=50
+        oninput="this.nextElementSibling.value = this.value"> <output>50</output>px</label>
+    <label><input id=showQM type=checkbox> Show Question Marks</label>
+    <label>QM Offset <input id=qmOffset type=range min=10 max=100 value=40
+        oninput="this.nextElementSibling.value = this.value"> <output>40</output>px</label>
+  </div>
+
+  <!-- === Legend === -->
+  <div class="row">
+    <label><input id=showLegend type=checkbox checked> Show Legend</label>
+    <label><input id=showLegendRegular type=checkbox checked> Show Regular Text in Legend</label>
+    <label>Legend Font Size <input id=legendSize type=range min=10 max=50 value=24
+        oninput="this.nextElementSibling.value = this.value"> <output>24</output>px</label>
+  </div>
+
+  <hr>
+
+  <div class="row">
+    <button id=randAll type=button>🎲 Randomize All</button>
+    <button id=reset type=button>🔄 Restore Defaults</button>
+    <button id=downloadBtn type=button>💾 Download PNG</button>
+  </div>
+</div>
+
+<br>
+<canvas id=can></canvas>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const ctx = $('can').getContext('2d');
+
+  const WORDS = ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE"];
+  const DEF = {
+    w: 1600, h: 400, code: '1234', font: 'Novem', size: 60, color: '#000000',
+    showLegend: true, showLegendRegular: true, legendSize: 24,
+    wordSpacing: 50, showQM: false, qmOffset: 40
+  };
+
+  // Ensure fonts are loaded before drawing
+  document.fonts.ready.then(draw);
+
+  function draw() {
+    const W = +$('w').value;
+    const H = +$('h').value;
+    $('can').width = W;
+    $('can').height = H;
+
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = $('color').value;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const codeStr = ($('code').value || '0000').replace(/\D/g, '').slice(0, 5);
+    const fontName = $('font').value;
+    const mainSize = +$('size').value;
+    const legendSize = +$('legendSize').value;
+    const showLegend = $('showLegend').checked;
+    const showLegendRegular = $('showLegendRegular').checked;
+    const wordSpacing = +$('wordSpacing').value;
+    const showQM = $('showQM').checked;
+    const qmOffset = +$('qmOffset').value;
+
+    let contentYStart = 0;
+
+    // --- Draw Legend (Single Row) ---
+    if (showLegend) {
+      const legendMargin = 20;
+      const legendHeight = (legendSize * (showLegendRegular ? 3 : 1.5)) + legendMargin * 2;
+
+      contentYStart = legendHeight;
+
+      ctx.save();
+      ctx.translate(0, legendMargin);
+
+      // Distribute 0-9 across the width
+      const itemWidth = W / 10;
+
+      for (let i = 0; i < 10; i++) {
+        const x = itemWidth * (i + 0.5);
+        const y = legendSize; // Baseline-ish
+
+        // Draw Number
+        ctx.font = `bold ${legendSize}px sans-serif`;
+        ctx.fillStyle = '#666';
+        ctx.fillText(i, x, y - legendSize);
+
+        // Draw Custom Word
+        ctx.fillStyle = $('color').value;
+        ctx.font = `${legendSize}px '${fontName}'`;
+        ctx.fillText(WORDS[i], x, y);
+
+        // Draw Regular Word
+        if (showLegendRegular) {
+          ctx.font = `${legendSize * 0.6}px sans-serif`;
+          ctx.fillStyle = '#999';
+          ctx.fillText(WORDS[i], x, y + legendSize);
+        }
+      }
+      ctx.restore();
+
+      // Draw separator line
+      ctx.beginPath();
+      ctx.moveTo(20, legendHeight);
+      ctx.lineTo(W - 20, legendHeight);
+      ctx.strokeStyle = '#eee';
+      ctx.stroke();
+    }
+
+    // --- Draw Main Puzzle (Single Row) ---
+    const digits = codeStr.split('');
+    const count = digits.length;
+
+    // Calculate total width of the puzzle group to center it
+    // We don't know exact text widths easily without measuring, but we can distribute them evenly or pack them.
+    // "Stretched out image" implies we might want to use the width.
+    // Let's distribute them evenly across the available width, respecting margins.
+
+    const availableWidth = W - 100; // 50px margin on sides
+    const itemWidth = availableWidth / count;
+
+    // Center vertically in the remaining space
+    const remainingHeight = H - contentYStart;
+    const centerY = contentYStart + remainingHeight / 2;
+
+    ctx.fillStyle = $('color').value;
+
+    digits.forEach((d, i) => {
+      // Position: Center of the allocated slot
+      // Adjust for wordSpacing if we want tight packing? 
+      // User asked for "range that controls the distance between the words".
+      // If we just distribute evenly, spacing is fixed by width.
+      // Let's use the wordSpacing to control the gap, so we calculate total width and center the whole block.
+
+      // Actually, measuring text is better for precise spacing.
+      // But "wordSpacing" usually means gap.
+      // Let's assume a fixed slot width based on "Main Word Size" is too risky (words vary in length).
+      // Let's measure each word.
+    });
+
+    // Re-approach: Measure all words to center the group
+    ctx.font = `${mainSize}px '${fontName}'`;
+    const metrics = digits.map(d => ctx.measureText(WORDS[parseInt(d)]));
+    const totalTextWidth = metrics.reduce((sum, m) => sum + m.width, 0);
+    const totalWidth = totalTextWidth + (wordSpacing * (count - 1));
+
+    let startX = (W - totalWidth) / 2;
+
+    // If total width exceeds canvas, we start at margin (or scale down? No, user can resize canvas)
+    if (totalWidth > W) startX = 20;
+
+    let currentX = startX;
+
+    digits.forEach((d, i) => {
+      const word = WORDS[parseInt(d)];
+      const m = metrics[i];
+      const x = currentX + m.width / 2; // center of the word
+
+      ctx.font = `${mainSize}px '${fontName}'`;
+      ctx.fillStyle = $('color').value;
+      ctx.fillText(word, x, centerY);
+
+      // Draw Question Mark
+      if (showQM) {
+        ctx.font = `bold ${mainSize}px sans-serif`;
+        ctx.fillStyle = '#ccc'; // Standard font, maybe grey? User said "standard font".
+        // "below each digit" -> below the word
+        ctx.fillText("?", x, centerY + qmOffset);
+      }
+
+      currentX += m.width + wordSpacing;
+    });
+  }
+
+  // Event Listeners
+  const inputs = ['w', 'h', 'code', 'font', 'size', 'color', 'showLegend', 'showLegendRegular', 'legendSize', 'wordSpacing', 'showQM', 'qmOffset'];
+  inputs.forEach(id => $(id).oninput = draw);
+  $('font').onchange = draw;
+
+  // Randomizers
+  function randCode() {
+    const len = Math.random() > 0.5 ? 4 : 5;
+    let s = '';
+    for (let i = 0; i < len; i++) s += Math.floor(Math.random() * 10);
+    $('code').value = s;
+  }
+
+  function randFont() {
+    const opts = $('font').options;
+    $('font').selectedIndex = Math.floor(Math.random() * opts.length);
+  }
+
+  const randFns = {
+    code: randCode,
+    font: randFont
+  };
+
+  document.querySelectorAll('[data-t]').forEach(b => {
+    b.onclick = () => {
+      if (randFns[b.dataset.t]) randFns[b.dataset.t]();
+      draw();
+    };
+  });
+
+  $('randAll').onclick = () => {
+    randCode();
+    randFont();
+    $('color').value = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+    draw();
+  };
+
+  $('reset').onclick = () => {
+    for (const k in DEF) {
+      const el = $(k);
+      if (el.type === 'checkbox') el.checked = DEF[k];
+      else el.value = DEF[k];
+      if (el.type === 'range' && el.nextElementSibling) el.nextElementSibling.value = el.value;
+    }
+    draw();
+  };
+
+  $('downloadBtn').onclick = () => {
+    const link = document.createElement('a');
+    link.download = `puzzle_${$('code').value}.png`;
+    link.href = $('can').toDataURL();
+    link.click();
+  };
+
+  // Initial draw
+  draw();
+</script>
