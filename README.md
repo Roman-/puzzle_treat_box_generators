@@ -31,3 +31,4 @@ Click any image below to explore the generator and example output. All examples 
 [![Circles in grid](01_count_filled_circles_in_grid/count_circles_1234.png)](01_count_filled_circles_in_grid/)
 [![Bar chart](03_bar_chart/bar_chart_1234.png)](03_bar_chart/)
 [![Colored circles](02_count_filled_circles_with_color/count_circles_color_1234.png)](02_count_filled_circles_with_color/)
+[![Words Spelled Out](04_words_spelled_out_custom_font/use_this_pic.png)](04_words_spelled_out_custom_font/)

@@ -15,3 +15,5 @@ cmake-build-*/
 tags
 
 # current project temp dir
+.DS_Store
+temp
