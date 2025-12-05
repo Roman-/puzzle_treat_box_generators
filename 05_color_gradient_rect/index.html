@@ -141,24 +141,20 @@
         return 'rgb(' + r + ',' + g + ',' + b + ')';
       }
 
-      // Step 2: build sorted array of K >= N digits 0–9 containing all input digits
+      // Step 2: build sorted array of EXACTLY 6 digits containing all input digits
       function buildDigitSet(input) {
         const digits = input.split('').map(ch => parseInt(ch, 10));
         const unique = Array.from(new Set(digits)).sort((a, b) => a - b);
         const allDigits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
         const remaining = allDigits.filter(d => !unique.includes(d));
 
-        const N = input.length;
-        const Kmin = Math.max(unique.length, N); // must be >= N and include all unique digits
-        const Kmax = 10;
-
-        const targetK = (Kmin === Kmax)
-          ? Kmax
-          : (Kmin + Math.floor(Math.random() * (Kmax - Kmin + 1)));
+        // We want exactly 6 items in the legend
+        const targetK = 6;
 
         shuffle(remaining);
         const extraNeeded = targetK - unique.length;
-        const extra = remaining.slice(0, extraNeeded);
+        // extraNeeded should be >= 0 because we validate unique.length <= 6 before calling this
+        const extra = remaining.slice(0, Math.max(0, extraNeeded));
 
         const result = unique.concat(extra).sort((a, b) => a - b);
         return result;
@@ -166,7 +162,7 @@
 
       // Step 3: assign HSV colors to each digit in digitSet
       function buildColorMap(digitSet) {
-        const hueGap = 30;
+        const hueGap = 50; // Increased from 30 to 50 for better distinction
         const usedHues = [];
         const s = 0.8 + Math.random() * 0.2; // 80–100%
         const v = 0.8 + Math.random() * 0.2; // 80–100%
@@ -175,7 +171,7 @@
         for (const d of digitSet) {
           let hue = null;
 
-          for (let attempt = 0; attempt < 80; attempt++) {
+          for (let attempt = 0; attempt < 100; attempt++) {
             const candidate = Math.floor(Math.random() * 360);
             const ok = usedHues.every(prev => {
               const diff = Math.abs(candidate - prev);
@@ -224,7 +220,9 @@
         const margin = 32;
         const legendCellHeight = 70;
         const legendTitleHeight = 24;
-        const columns = Math.min(digitSet.length, 5);
+
+        // Fixed 3 columns for 6 items -> 2 rows
+        const columns = 3;
         const rows = Math.ceil(digitSet.length / columns);
         const legendHeight = legendTitleHeight + rows * legendCellHeight;
 
@@ -407,8 +405,17 @@
           clearCanvas();
           return;
         }
-        if (raw.length > 10) {
-          showError('Please enter at most 10 digits so the legend can fit (you entered ' + raw.length + ').');
+
+        // Validate unique digits count <= 6
+        const uniqueCount = new Set(raw.split('')).size;
+        if (uniqueCount > 6) {
+          showError('Please enter at most 6 unique digits (you entered ' + uniqueCount + ').');
+          clearCanvas();
+          return;
+        }
+
+        if (raw.length > 20) { // Increased limit slightly, main constraint is unique digits
+          showError('Please enter at most 20 digits.');
           clearCanvas();
           return;
         }
