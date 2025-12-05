@@ -5,6 +5,31 @@
   <meta charset="UTF-8">
   <title>Digit Color Encoder</title>
   <style>
+    @font-face {
+      font-family: 'Novem';
+      src: url('../font/Novem-nALvR.ttf');
+    }
+
+    @font-face {
+      font-family: 'Shrooms';
+      src: url('../font/Shrooms-lg65.ttf');
+    }
+
+    @font-face {
+      font-family: 'Groovy';
+      src: url('../font/groovy-zodiac.demo.ttf');
+    }
+
+    @font-face {
+      font-family: 'Heavytal';
+      src: url('../font/heavytal-personal-use.regular.ttf');
+    }
+
+    @font-face {
+      font-family: 'Metalico';
+      src: url('../font/metalico-personal-use.regular.ttf');
+    }
+
     body {
       font-family: sans-serif;
       max-width: 1000px;
@@ -55,8 +80,6 @@
     <!-- === Dimensions === -->
     <div class="row">
       <label>Width <input id="w" type="number" value="800" min="100" step=10></label>
-      <!-- Height is calculated dynamically based on content, but we can offer a base scale or just let it be auto -->
-      <!-- The previous implementation calculated height. Let's stick to width control for now as height depends on legend/strap size. -->
     </div>
 
     <!-- === Puzzle Content === -->
@@ -69,11 +92,49 @@
 
     <!-- === Legend Appearance === -->
     <div class="row">
-      <label>Digit Size <input id="digitSize" type="range" min="10" max="60" value="22"
-          oninput="this.nextElementSibling.value = this.value"> <output>22</output>px</label>
-      <label>Digit Offset <input id="digitOffset" type="range" min="-50" max="50" value="10"
-          oninput="this.nextElementSibling.value = this.value"> <output>10</output>px</label>
-      <label><input id="colorDigit" type="checkbox"> Color Digit</label>
+      <label>Digit Size <input id="digitSize" type="range" min="10" max="100" value="46"
+          oninput="this.nextElementSibling.value = this.value"> <output>46</output>px</label>
+      <label>Digit Offset <input id="digitOffset" type="range" min="-100" max="100" value="-37"
+          oninput="this.nextElementSibling.value = this.value"> <output>-37</output>px</label>
+      <label><input id="colorDigit" type="checkbox" checked> Color Digit</label>
+    </div>
+    <div class="row">
+      <label>Digit Font
+        <select id="digitFont">
+          <option value="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">System UI</option>
+          <option value="Novem">Novem</option>
+          <option value="Shrooms">Shrooms</option>
+          <option value="Groovy">Groovy</option>
+          <option value="Heavytal">Heavytal</option>
+          <option value="Metalico">Metalico</option>
+        </select>
+      </label>
+    </div>
+
+    <hr>
+
+    <!-- === Color Properties === -->
+    <div class="row">
+      <label>Min Saturation <input id="minS" type="range" min="0" max="100" value="80"
+          oninput="this.nextElementSibling.value = this.value"> <output>80</output>%</label>
+      <label>Max Saturation <input id="maxS" type="range" min="0" max="100" value="100"
+          oninput="this.nextElementSibling.value = this.value"> <output>100</output>%</label>
+    </div>
+    <div class="row">
+      <label>Min Value <input id="minV" type="range" min="0" max="100" value="80"
+          oninput="this.nextElementSibling.value = this.value"> <output>80</output>%</label>
+      <label>Max Value <input id="maxV" type="range" min="0" max="100" value="100"
+          oninput="this.nextElementSibling.value = this.value"> <output>100</output>%</label>
+    </div>
+
+    <hr>
+
+    <!-- === Question Mark Appearance === -->
+    <div class="row">
+      <label>Question Mark Size <input id="qmSize" type="range" min="10" max="100" value="32"
+          oninput="this.nextElementSibling.value = this.value"> <output>32</output>px</label>
+      <label>Question Mark Y-Offset <input id="qmOffset" type="range" min="-50" max="50" value="0"
+          oninput="this.nextElementSibling.value = this.value"> <output>0</output>px</label>
     </div>
 
     <hr>
@@ -97,6 +158,13 @@
       const digitSizeInput = document.getElementById('digitSize');
       const digitOffsetInput = document.getElementById('digitOffset');
       const colorDigitInput = document.getElementById('colorDigit');
+      const digitFontInput = document.getElementById('digitFont');
+      const minSInput = document.getElementById('minS');
+      const maxSInput = document.getElementById('maxS');
+      const minVInput = document.getElementById('minV');
+      const maxVInput = document.getElementById('maxV');
+      const qmSizeInput = document.getElementById('qmSize');
+      const qmOffsetInput = document.getElementById('qmOffset');
       const errorEl = document.getElementById('error');
       const canvas = document.getElementById('canvas');
 
@@ -162,58 +230,60 @@
 
       // Step 3: assign HSV colors to each digit in digitSet
       function buildColorMap(digitSet) {
-        const hueGap = 50; // Increased from 30 to 50 for better distinction
-        const usedHues = [];
-        const s = 0.8 + Math.random() * 0.2; // 80–100%
-        const v = 0.8 + Math.random() * 0.2; // 80–100%
         const map = new Map();
 
-        for (const d of digitSet) {
-          let hue = null;
+        // Get ranges
+        const minS = parseInt(minSInput.value, 10) / 100;
+        const maxS = parseInt(maxSInput.value, 10) / 100;
+        const minV = parseInt(minVInput.value, 10) / 100;
+        const maxV = parseInt(maxVInput.value, 10) / 100;
 
-          for (let attempt = 0; attempt < 100; attempt++) {
-            const candidate = Math.floor(Math.random() * 360);
-            const ok = usedHues.every(prev => {
-              const diff = Math.abs(candidate - prev);
-              const dist = Math.min(diff, 360 - diff);
-              return dist >= hueGap;
-            });
-            if (ok || usedHues.length === 0) {
-              hue = candidate;
-              break;
-            }
-          }
-
-          // Fallback: evenly spaced hues if random picking failed
-          if (hue === null) {
-            const step = 360 / digitSet.length;
-            hue = (usedHues.length * step) % 360;
-          }
-
-          usedHues.push(hue);
-          map.set(d, hsvToCss(hue, s, v));
+        // Guaranteed distinct hues: 60 degrees apart
+        const startHue = Math.floor(Math.random() * 360);
+        const hues = [];
+        for (let i = 0; i < 6; i++) {
+          hues.push((startHue + i * 60) % 360);
         }
+        shuffle(hues); // Randomize assignment to digits
 
-        return { map, s, v };
+        digitSet.forEach((d, i) => {
+          const hue = hues[i];
+          // Random S and V within range for each color
+          const s = minS + Math.random() * (maxS - minS);
+          const v = minV + Math.random() * (maxV - minV);
+
+          map.set(d, {
+            css: hsvToCss(hue, s, v),
+            h: hue,
+            s: s,
+            v: v
+          });
+        });
+
+        // Return a representative S/V for the gradient boundaries (using average or just mid-range)
+        // Actually, we'll generate boundary colors separately using the same ranges
+        return { map, minS, maxS, minV, maxV };
       }
 
       function clearCanvas() {
         const ctx = canvas.getContext('2d');
         const width = parseInt(widthInput.value, 10) || 800;
         canvas.width = width;
-        // Keep height as is or reset? Let's just clear.
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
 
       // Step 4 & 5: draw legend and encoding stripe
       function drawCanvas(state) {
-        const { input, digitSet, colors, s, v } = state;
+        const { input, digitSet, colors, minS, maxS, minV, maxV } = state;
         const ctx = canvas.getContext('2d');
 
         const width = parseInt(widthInput.value, 10) || 800;
-        const digitSize = parseInt(digitSizeInput.value, 10) || 22;
-        const digitOffset = parseInt(digitOffsetInput.value, 10) || 10;
+        const digitSize = parseInt(digitSizeInput.value, 10) || 46;
+        const digitOffset = parseInt(digitOffsetInput.value, 10) || -37;
         const colorDigit = colorDigitInput.checked;
+        const digitFont = digitFontInput.value;
+        const qmSize = parseInt(qmSizeInput.value, 10) || 32;
+        const qmOffset = parseInt(qmOffsetInput.value, 10) || 0;
 
         canvas.width = width;
 
@@ -224,7 +294,7 @@
         // Fixed 3 columns for 6 items -> 2 rows
         const columns = 3;
         const rows = Math.ceil(digitSet.length / columns);
-        const legendHeight = legendTitleHeight + rows * legendCellHeight;
+        const legendHeight = rows * legendCellHeight;
 
         const strapHeight = 90;
         const strapTopMargin = 40;
@@ -248,19 +318,11 @@
         ctx2.fillStyle = '#ffffff';
         ctx2.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Legend title
-        let y = margin;
-        ctx2.font = '18px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-        ctx2.fillStyle = '#111827';
-        ctx2.textAlign = 'left';
-        ctx2.textBaseline = 'top';
-        ctx2.fillText('Digit color legend', margin, y);
-        y += legendTitleHeight;
-
         // Legend grid: digit + colored circle
         const gridWidth = width - margin * 2;
         const cellWidth = gridWidth / columns;
         const circleRadius = 16;
+        let y = margin;
 
         digitSet.forEach((digit, index) => {
           const row = Math.floor(index / columns);
@@ -271,30 +333,22 @@
           const cx = cellX + cellWidth / 2;
           const cy = cellY + legendCellHeight / 2;
 
+          const colorObj = colors.get(digit);
+
           // Draw Circle
           ctx2.beginPath();
           ctx2.arc(cx, cy, circleRadius, 0, Math.PI * 2);
-          ctx2.fillStyle = colors.get(digit);
+          ctx2.fillStyle = colorObj.css;
           ctx2.fill();
           ctx2.lineWidth = 1;
           ctx2.strokeStyle = 'rgba(17, 24, 39, 0.2)';
           ctx2.stroke();
 
           // Draw Digit
-          ctx2.font = `${digitSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-          ctx2.fillStyle = colorDigit ? colors.get(digit) : '#111827';
+          ctx2.font = `${digitSize}px ${digitFont}`;
+          ctx2.fillStyle = colorDigit ? colorObj.css : '#111827';
           ctx2.textAlign = 'center';
           ctx2.textBaseline = 'middle';
-
-          // Offset relative to circle center. 
-          // Positive offset -> to the right? Or below?
-          // User said "near their circles". Let's assume X offset for side-by-side or Y for below?
-          // "exactly underneath" was for question marks.
-          // Let's interpret "Digit Offset" as X offset from circle center + radius.
-          // Actually, let's just use X offset from center.
-          // If offset is 0, it's on top of circle.
-          // If offset is > radius, it's to the right.
-          // Let's make it simple: X coordinate = cx + digitOffset.
 
           ctx2.fillText(String(digit), cx + digitOffset, cy);
         });
@@ -306,24 +360,19 @@
         const strapY = legendBottomY + strapTopMargin;
         const strapWidth = width - margin * 2;
 
-        // Left/right random boundary colors (same S,V as digit set)
+        // Left/right random boundary colors
+        // We want them to be distinct from the first/last digit colors if possible, 
+        // but for now just random hues with random S/V in range is fine.
         const leftHue = Math.floor(Math.random() * 360);
-        let rightHue = null;
-        for (let attempt = 0; attempt < 80; attempt++) {
-          const candidate = Math.floor(Math.random() * 360);
-          const diff = Math.abs(candidate - leftHue);
-          const dist = Math.min(diff, 360 - diff);
-          if (dist >= 45) {
-            rightHue = candidate;
-            break;
-          }
-        }
-        if (rightHue === null) {
-          rightHue = (leftHue + 180) % 360;
-        }
+        const leftS = minS + Math.random() * (maxS - minS);
+        const leftV = minV + Math.random() * (maxV - minV);
 
-        const leftColor = hsvToCss(leftHue, s, v);
-        const rightColor = hsvToCss(rightHue, s, v);
+        const rightHue = Math.floor(Math.random() * 360);
+        const rightS = minS + Math.random() * (maxS - minS);
+        const rightV = minV + Math.random() * (maxV - minV);
+
+        const leftColor = hsvToCss(leftHue, leftS, leftV);
+        const rightColor = hsvToCss(rightHue, rightS, rightV);
 
         const gradient = ctx2.createLinearGradient(strapX, 0, strapX + strapWidth, 0);
         gradient.addColorStop(0, leftColor);
@@ -336,8 +385,8 @@
           for (let i = 0; i < N; i++) {
             const pos = (i + 1) * step; // in (0,1)
             const d = parseInt(input[i], 10);
-            const color = colors.get(d);
-            gradient.addColorStop(pos, color);
+            const colorObj = colors.get(d);
+            gradient.addColorStop(pos, colorObj.css);
           }
 
           gradient.addColorStop(1, rightColor);
@@ -353,22 +402,22 @@
 
           // Markers and Question Marks
           const markerY = strapY + strapHeight / 2;
-          const qY = strapY + strapHeight + strapBottomMargin;
+          const qY = strapY + strapHeight + strapBottomMargin + qmOffset;
 
           ctx2.textAlign = 'center';
           ctx2.textBaseline = 'top';
-          ctx2.font = '32px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+          ctx2.font = `${qmSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
 
           for (let i = 0; i < N; i++) {
             const pos = (i + 1) * step;
             const x = strapX + strapWidth * pos;
             const d = parseInt(input[i], 10);
-            const color = colors.get(d);
+            const colorObj = colors.get(d);
 
             // Marker on stripe
             ctx2.beginPath();
             ctx2.arc(x, markerY, 4.5, 0, Math.PI * 2);
-            ctx2.fillStyle = color;
+            ctx2.fillStyle = colorObj.css;
             ctx2.fill();
             ctx2.lineWidth = 1;
             ctx2.strokeStyle = 'rgba(255, 255, 255, 0.75)';
@@ -378,8 +427,6 @@
             ctx2.fillStyle = '#111827';
             ctx2.fillText('?', x, qY);
           }
-
-          // REMOVED: Caption "A number is encoded in this stripe"
 
         } else {
           // Just a simple left-right gradient if somehow N == 0
@@ -423,14 +470,13 @@
         showError('');
 
         const digitSet = buildDigitSet(raw);
-        const { map, s, v } = buildColorMap(digitSet);
+        const { map, minS, maxS, minV, maxV } = buildColorMap(digitSet);
 
         const state = {
           input: raw,
           digitSet,
           colors: map,
-          s,
-          v
+          minS, maxS, minV, maxV
         };
 
         lastState = state;
@@ -438,10 +484,26 @@
       }
 
       // Event Listeners
-      const inputs = [widthInput, digitSizeInput, digitOffsetInput, colorDigitInput];
+      const inputs = [
+        widthInput, digitSizeInput, digitOffsetInput, colorDigitInput, digitFontInput,
+        minSInput, maxSInput, minVInput, maxVInput,
+        qmSizeInput, qmOffsetInput
+      ];
       inputs.forEach(el => el.addEventListener('input', () => {
-        if (lastState) drawCanvas(lastState);
+        if (lastState) {
+          // Re-generate colors if S/V changed, or just redraw?
+          // If we just redraw, we need to update the colors in the state.
+          // Since colors are random within range, dragging the slider would cause disco effect if we re-gen every frame.
+          // Ideally we should only re-gen colors if we explicitly want to.
+          // But here, let's just re-call handleGenerate which rebuilds everything.
+          handleGenerate();
+        }
       }));
+
+      // Ensure fonts are loaded before drawing (simple delay or just rely on redraw)
+      document.fonts.ready.then(() => {
+        if (lastState) drawCanvas(lastState);
+      });
 
       digitsInput.addEventListener('input', handleGenerate);
 
