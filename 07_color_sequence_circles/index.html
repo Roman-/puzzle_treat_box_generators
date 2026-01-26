@@ -57,21 +57,8 @@
 
 <canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
 
+<script src="../shared/colors.js"></script>
 <script>
-// Include shared modules inline (for standalone HTML)
-const COLORS = [
-  { index: 0, hex: '#eb0c0c', name: 'Red' },
-  { index: 1, hex: '#0D47A1', name: 'Blue' },
-  { index: 2, hex: '#43A047', name: 'Green' },
-  { index: 3, hex: '#FDD835', name: 'Yellow' },
-  { index: 4, hex: '#FB8C00', name: 'Orange' },
-  { index: 5, hex: '#8E24AA', name: 'Purple' },
-  { index: 6, hex: '#00CED1', name: 'Aqua' },
-  { index: 7, hex: '#9e375a', name: 'Maroon' },
-  { index: 8, hex: '#6D4C41', name: 'Brown' },
-  { index: 9, hex: '#616161', name: 'Dark Grey' },
-];
-const COLOR_HEX = COLORS.map(c => c.hex);
 
 // Sequence generation
 const randomElement = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -124,6 +111,10 @@ const DEF = {
 
 // Store current patterns for "new pattern" button
 let currentPatterns = [];
+// Shuffled mapping: digitToColor[digit] = colorIndex
+// e.g., if digitToColor[0] = 5, then digit 0 displays as Purple
+let digitToColor = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+// Legend display order (which digit appears in which position)
 let legendOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 function generateColorSequenceForDigit(level, answerDigit) {
@@ -164,6 +155,10 @@ function regeneratePatterns() {
 
   currentPatterns = digitsArr.map(digit => generateColorSequenceForDigit(level, digit));
 
+  // Shuffle which color each digit represents
+  digitToColor = shuffled([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+  // Optionally shuffle the legend display order
   if ($('shuffleLegend').checked) {
     legendOrder = shuffled([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
   } else {
@@ -195,13 +190,13 @@ function draw() {
   ctx.textBaseline = 'middle';
 
   for (let i = 0; i < 10; i++) {
-    const colorIdx = legendOrder[i];
+    const digit = legendOrder[i];
     const x = legendStartX + legendSpacing * i + legendSpacing / 2;
 
-    // Draw circle
+    // Draw circle with the color mapped to this digit
     ctx.beginPath();
     ctx.arc(x, legendY, legendCircleSize / 2, 0, Math.PI * 2);
-    ctx.fillStyle = COLOR_HEX[colorIdx];
+    ctx.fillStyle = COLOR_HEX[digitToColor[digit]];
     ctx.fill();
     ctx.strokeStyle = $('outlineColor').value;
     ctx.lineWidth = 1;
@@ -209,7 +204,7 @@ function draw() {
 
     // Draw digit below
     ctx.fillStyle = '#000';
-    ctx.fillText(colorIdx.toString(), x, legendY + legendCircleSize);
+    ctx.fillText(digit.toString(), x, legendY + legendCircleSize);
   }
 
   // Draw separator line
@@ -270,8 +265,8 @@ function draw() {
         ctx.textBaseline = 'middle';
         ctx.fillText('?', centerX, y);
       } else {
-        // Colored circle
-        ctx.fillStyle = COLOR_HEX[colorSequence[i]];
+        // Colored circle (use digitToColor mapping)
+        ctx.fillStyle = COLOR_HEX[digitToColor[colorSequence[i]]];
         ctx.fill();
 
         if (outlineFactor > 0) {
