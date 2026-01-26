@@ -1,0 +1,149 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Missing Digit Grid Match – generator</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=800 min=50></label>
+<label>H <input id=h type=number value=300 min=50></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{4}" maxlength=4></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Columns <input id=cols type=number min=2 max=10 value=3></label>
+<button type=button data-t="cols">🎲</button><br>
+<label>Rows <input id=rows type=number min=2 max=10 value=3></label>
+<button type=button data-t="rows">🎲</button><br>
+
+<label>Font
+  <select id=font>
+    <option>Arial</option><option>Helvetica</option><option>Comic Sans MS</option>
+    <option>Courier New</option><option>Times New Roman</option><option>Georgia</option>
+    <option>Verdana</option><option>Trebuchet MS</option>
+  </select>
+  <button type=button data-t="font">🎲</button>
+</label><br>
+
+<label>Font size (× cell)
+  <input id=fSize type=range min=0.2 max=0.9 step=0.01 value=0.7>
+</label><br>
+
+<label>Cell border (× cell)
+  <input id=border type=range min=0 max=0.2 step=0.01 value=0.05>
+  <button type=button data-t="border">🎲</button>
+</label><br>
+
+<label>Grid gap (× W)
+  <input id=gap type=range min=0 max=0.1 step=0.01 value=0.05>
+  <button type=button data-t="gap">🎲</button>
+</label><br>
+
+<label><input id=colorAid type=checkbox checked> Colour aid</label><br>
+
+<button id=randAll type=button>🎲 Randomize all</button>
+<button id=reset   type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const SCENES = 4, NAME = 'missing_digit_grid';
+const DEF = {
+  w:800, h:300, code:'1234',
+  cols:3, rows:3,
+  font:'Arial', fSize:0.7,
+  border:0.05, gap:0.05,
+  colorAid:true
+};
+
+function randCode(){ $('code').value = (Math.random()*1e4|0).toString().padStart(4,'0'); }
+function randCols(){ $('cols').value = 2 + (Math.random()*9|0); }
+function randRows(){ $('rows').value = 2 + (Math.random()*9|0); }
+function randFont(){ const o=[...$('font').options]; $('font').value=o[Math.random()*o.length|0].value; }
+function randBorder(){ $('border').value = (Math.random()*0.2).toFixed(2); }
+function randGap(){ $('gap').value = (Math.random()*0.1).toFixed(2); }
+
+const randFns = { code:randCode, cols:randCols, rows:randRows, font:randFont, border:randBorder, gap:randGap };
+
+function randomColor(){
+  const h = Math.floor(Math.random()*360);
+  return `hsl(${h},80%,70%)`;
+}
+
+function draw(){
+  const W=+$('w').value, H=+$('h').value;
+  $('can').width=W; $('can').height=H;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+
+  const cols=+$('cols').value, rows=+$('rows').value;
+  const gap = +$('gap').value * W;
+  const sceneW = (W - gap*(SCENES-1)) / SCENES;
+  const cell = Math.min(sceneW/cols, H/rows);
+  const gridW = cols*cell, gridH = rows*cell;
+  const font = +$('fSize').value * cell;
+  const border = +$('border').value * cell;
+  const digits = ($('code').value||'0000').padEnd(4,'0').slice(0,4).split('').map(Number);
+
+  const total = rows*cols;
+  const base = Array.from({length: total}, () => Math.random()*10|0);
+  const positions = [];
+  while (positions.length < SCENES) {
+    const p = Math.random()*total|0;
+    if (!positions.includes(p)) positions.push(p);
+  }
+  positions.forEach((p,i) => base[p] = digits[i]);
+
+  const colors = Array.from({length: total}, randomColor);
+
+  for(let s=0; s<SCENES; s++){
+    const x0 = s*(sceneW+gap) + (sceneW-gridW)/2;
+    const y0 = (H - gridH)/2;
+    for(let r=0; r<rows; r++){
+      for(let c=0; c<cols; c++){
+        const idx = r*cols+c;
+        const x = x0 + c*cell;
+        const y = y0 + r*cell;
+        if ($('colorAid').checked){
+          ctx.fillStyle = colors[idx];
+          ctx.fillRect(x,y,cell,cell);
+        } else {
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(x,y,cell,cell);
+        }
+        ctx.strokeStyle='#000';
+        ctx.lineWidth=border;
+        ctx.strokeRect(x,y,cell,cell);
+        ctx.fillStyle='#000';
+        ctx.font=`${font}px '${$('font').value}'`;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        const char = (positions[s]===idx)?'?' : base[idx];
+        ctx.fillText(char, x+cell/2, y+cell/2);
+      }
+    }
+  }
+}
+
+oninput = draw; draw();
+
+document.querySelectorAll('[data-t]').forEach(b => b.onclick=()=>{ randFns[b.dataset.t](); draw(); });
+
+$('randAll').onclick = () => { Object.values(randFns).forEach(f=>f()); draw(); };
+
+$('reset').onclick = () => { for(const k in DEF){ const el=$(k); if(!el) continue; if(el.type==='checkbox') el.checked=DEF[k]; else el.value=DEF[k]; } draw(); };
+
+$('can').onclick = () => {
+  const c=($('code').value||'0000').padEnd(4,'0').slice(0,4);
+  const a=document.createElement('a');
+  a.download=`${NAME}_${c}.png`;
+  a.href=$('can').toDataURL();
+  a.click();
+  randCode(); draw();
+};
+</script>

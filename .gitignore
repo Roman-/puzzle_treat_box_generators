@@ -2,6 +2,7 @@
 # idea
 .idea
 .ccls-cache
+.DS_Store
 
 # build
 [Bb]uild

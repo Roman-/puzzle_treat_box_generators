@@ -1,0 +1,358 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Color Sequence Circles – generator</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=800 min=100></label>
+<label>H <input id=h type=number value=600 min=100></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Difficulty (pattern complexity)
+  <select id=level>
+    <option value=1>Level 1 - Two colors alternating</option>
+    <option value=2 selected>Level 2 - Simple patterns</option>
+    <option value=3>Level 3 - Medium patterns</option>
+    <option value=4>Level 4 - Complex patterns</option>
+  </select>
+  <button type=button data-t="level">🎲</button>
+</label><br>
+
+<label>Circle radius (× scene W)
+  <input id=radius type=range min=0.15 max=0.40 step=0.01 value=0.30>
+  <button type=button data-t="radius">🎲</button>
+</label><br>
+
+<label>Vertical overlap (× diameter)
+  <input id=overlap type=range min=0.20 max=0.95 step=0.01 value=0.40>
+  <button type=button data-t="overlap">🎲</button>
+</label><br>
+
+<label>Circle outline (× radius)
+  <input id=outline type=range min=0 max=0.15 step=0.01 value=0.05>
+  <button type=button data-t="outline">🎲</button>
+</label><br>
+
+<label>Outline color <input id=outlineColor type=color value="#333333">
+  <button type=button data-t="outlineColor">🎲</button>
+</label><br>
+
+<label>Legend circle size (× H)
+  <input id=legendSize type=range min=0.03 max=0.08 step=0.005 value=0.05>
+  <button type=button data-t="legendSize">🎲</button>
+</label><br>
+
+<label><input id=shuffleLegend type=checkbox> Shuffle legend order</label><br>
+
+<button id=randAll type=button>🎲 Randomize all</button>
+<button id=reset type=button>🔄 Restore defaults</button>
+<button id=newPattern type=button>🔀 New patterns (same code)</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+// Include shared modules inline (for standalone HTML)
+const COLORS = [
+  { index: 0, hex: '#E53935', name: 'Red' },
+  { index: 1, hex: '#FB8C00', name: 'Orange' },
+  { index: 2, hex: '#FDD835', name: 'Yellow' },
+  { index: 3, hex: '#7CB342', name: 'Lime' },
+  { index: 4, hex: '#43A047', name: 'Green' },
+  { index: 5, hex: '#00ACC1', name: 'Teal' },
+  { index: 6, hex: '#1E88E5', name: 'Blue' },
+  { index: 7, hex: '#5E35B1', name: 'Indigo' },
+  { index: 8, hex: '#8E24AA', name: 'Purple' },
+  { index: 9, hex: '#D81B60', name: 'Pink' },
+];
+const COLOR_HEX = COLORS.map(c => c.hex);
+
+// Sequence generation
+const randomElement = arr => arr[Math.floor(Math.random() * arr.length)];
+const shuffle = arr => {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+const shuffled = array => shuffle(array.slice());
+
+const patterns = [
+  { level: 0, patterns: [[0]] },
+  { level: 1, patterns: [[0, 1]] },
+  { level: 2, patterns: [[0, 1, 2], [0, 1, 1], [0, 0, 1], [1, 1, 0, 0]] },
+  { level: 3, patterns: [[0, 0, 0, 1], [0, 1, 2, 3], [0, 0, 1, 2], [0, 1, 1, 2], [0, 1, 2, 2], [0, 1, 2, 1], [0, 1, 0, 2], [0, 0, 1, 1, 2, 2]] },
+  { level: 4, patterns: [[0, 1, 2, 3, 4], [0, 1, 0, 1, 1], [0, 1, 0, 1, 2], [0, 1, 0, 2, 1], [0, 1, 2, 0, 2], [0, 1, 2, 1, 2], [0, 1, 2, 3, 0], [0, 1, 2, 3, 1], [0, 1, 2, 3, 2], [0, 1, 2, 3, 3]] },
+];
+
+const getRandomPattern = level => {
+  if (level >= patterns.length) return [0];
+  return randomElement(patterns[level].patterns);
+};
+
+const generateSequence = (level, length) => {
+  const pattern = getRandomPattern(level);
+  const sequence = [];
+  for (let i = 0; i < length; i++) {
+    sequence.push(pattern[i % pattern.length]);
+  }
+  return sequence;
+};
+
+// Main app
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'color_sequence_circles';
+const CIRCLES_PER_COLUMN = 13;
+
+// Get number of columns from code length (1-5)
+const getNumColumns = () => Math.min(5, Math.max(1, ($('code').value || '').length || 4));
+
+const DEF = {
+  w: 800, h: 600, code: '1234',
+  level: '2', radius: 0.30, overlap: 0.40,
+  outline: 0.05, outlineColor: '#333333',
+  legendSize: 0.05, shuffleLegend: false
+};
+
+// Store current patterns for "new pattern" button
+let currentPatterns = [];
+let legendOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+function generateColorSequenceForDigit(level, answerDigit) {
+  // Generate pattern indices for 13 positions
+  const patternIndices = generateSequence(level, CIRCLES_PER_COLUMN);
+
+  // Find which pattern index is at the answer position (last position)
+  const answerPatternIndex = patternIndices[CIRCLES_PER_COLUMN - 1];
+
+  // Find all unique pattern indices used
+  const uniqueIndices = [...new Set(patternIndices)];
+
+  // Create a mapping from pattern indices to color indices
+  // The answer pattern index must map to the answer digit (color)
+  const patternToColor = {};
+  patternToColor[answerPatternIndex] = answerDigit;
+
+  // Assign remaining pattern indices to random colors (excluding answerDigit)
+  const availableColors = Array.from({length: 10}, (_, i) => i).filter(c => c !== answerDigit);
+  shuffle(availableColors);
+
+  let colorIdx = 0;
+  for (const pi of uniqueIndices) {
+    if (pi !== answerPatternIndex) {
+      patternToColor[pi] = availableColors[colorIdx++];
+    }
+  }
+
+  // Convert pattern indices to colors
+  return patternIndices.map(pi => patternToColor[pi]);
+}
+
+function regeneratePatterns() {
+  const codeStr = $('code').value || '1234';
+  const numColumns = getNumColumns();
+  const digitsArr = codeStr.padEnd(numColumns, '0').slice(0, numColumns).split('').map(Number);
+  const level = +$('level').value;
+
+  currentPatterns = digitsArr.map(digit => generateColorSequenceForDigit(level, digit));
+
+  if ($('shuffleLegend').checked) {
+    legendOrder = shuffled([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  } else {
+    legendOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  }
+}
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+
+  // If no patterns generated yet, generate them
+  if (currentPatterns.length === 0) {
+    regeneratePatterns();
+  }
+
+  const legendCircleSize = +$('legendSize').value * H;
+  const legendHeight = legendCircleSize * 3; // Circle + gap + digit
+  const legendY = legendCircleSize * 1.2;
+
+  // Draw legend at top
+  const legendStartX = W * 0.05;
+  const legendEndX = W * 0.95;
+  const legendSpacing = (legendEndX - legendStartX) / 10;
+
+  ctx.font = `bold ${legendCircleSize * 0.8}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i < 10; i++) {
+    const colorIdx = legendOrder[i];
+    const x = legendStartX + legendSpacing * i + legendSpacing / 2;
+
+    // Draw circle
+    ctx.beginPath();
+    ctx.arc(x, legendY, legendCircleSize / 2, 0, Math.PI * 2);
+    ctx.fillStyle = COLOR_HEX[colorIdx];
+    ctx.fill();
+    ctx.strokeStyle = $('outlineColor').value;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Draw digit below
+    ctx.fillStyle = '#000';
+    ctx.fillText(colorIdx.toString(), x, legendY + legendCircleSize);
+  }
+
+  // Draw separator line
+  const separatorY = legendY + legendCircleSize * 1.7;
+  ctx.beginPath();
+  ctx.moveTo(W * 0.02, separatorY);
+  ctx.lineTo(W * 0.98, separatorY);
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Calculate circle area
+  const circleAreaTop = separatorY + 10;
+  const circleAreaHeight = H - circleAreaTop - 10;
+  const numColumns = getNumColumns();
+  const sceneWidth = W / numColumns;
+
+  const radiusFactor = +$('radius').value;
+  const overlapFactor = +$('overlap').value;
+  const outlineFactor = +$('outline').value;
+
+  // For each column (scene)
+  for (let scene = 0; scene < numColumns; scene++) {
+    const colorSequence = currentPatterns[scene];
+    if (!colorSequence) continue;
+
+    const centerX = sceneWidth * scene + sceneWidth / 2;
+    const radius = sceneWidth * radiusFactor / 2;
+    const diameter = radius * 2;
+    const verticalStep = diameter * (1 - overlapFactor);
+
+    // Calculate total height needed
+    const totalHeight = diameter + (CIRCLES_PER_COLUMN - 1) * verticalStep;
+
+    // Center vertically in available space
+    const startY = circleAreaTop + (circleAreaHeight - totalHeight) / 2 + radius;
+
+    // Draw circles from top to bottom
+    for (let i = 0; i < CIRCLES_PER_COLUMN; i++) {
+      const y = startY + i * verticalStep;
+      const isAnswer = (i === CIRCLES_PER_COLUMN - 1);
+
+      ctx.beginPath();
+      ctx.arc(centerX, y, radius, 0, Math.PI * 2);
+
+      if (isAnswer) {
+        // Answer circle: white with question mark
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.strokeStyle = $('outlineColor').value;
+        ctx.lineWidth = radius * outlineFactor;
+        ctx.stroke();
+
+        // Draw question mark
+        ctx.fillStyle = '#666';
+        ctx.font = `bold ${radius}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('?', centerX, y);
+      } else {
+        // Colored circle
+        ctx.fillStyle = COLOR_HEX[colorSequence[i]];
+        ctx.fill();
+
+        if (outlineFactor > 0) {
+          ctx.strokeStyle = $('outlineColor').value;
+          ctx.lineWidth = radius * outlineFactor;
+          ctx.stroke();
+        }
+      }
+    }
+  }
+}
+
+// Event handlers
+function randCode() {
+  const numDigits = getNumColumns();
+  const max = Math.pow(10, numDigits);
+  $('code').value = (Math.random() * max | 0).toString().padStart(numDigits, '0');
+  regeneratePatterns();
+}
+function randLevel() { $('level').value = (Math.random() * 4 + 1 | 0).toString(); regeneratePatterns(); }
+function randRadius() { $('radius').value = (0.15 + Math.random() * 0.25).toFixed(2); }
+function randOverlap() { $('overlap').value = (0.20 + Math.random() * 0.75).toFixed(2); }
+function randOutline() { $('outline').value = (Math.random() * 0.15).toFixed(2); }
+function randOutlineColor() { $('outlineColor').value = '#' + (Math.random() * 0x555555 | 0).toString(16).padStart(6, '0'); }
+function randLegendSize() { $('legendSize').value = (0.03 + Math.random() * 0.05).toFixed(3); }
+
+const randFns = {
+  code: randCode,
+  level: randLevel,
+  radius: randRadius,
+  overlap: randOverlap,
+  outline: randOutline,
+  outlineColor: randOutlineColor,
+  legendSize: randLegendSize
+};
+
+document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { randFns[b.dataset.t](); draw(); });
+
+$('randAll').onclick = () => {
+  Object.values(randFns).forEach(f => f());
+  draw();
+};
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = DEF[k];
+    else el.value = DEF[k];
+  }
+  regeneratePatterns();
+  draw();
+};
+
+$('newPattern').onclick = () => {
+  regeneratePatterns();
+  draw();
+};
+
+// Regenerate patterns when code or level changes
+$('code').oninput = () => { regeneratePatterns(); draw(); };
+$('level').onchange = () => { regeneratePatterns(); draw(); };
+$('shuffleLegend').onchange = () => { regeneratePatterns(); draw(); };
+
+// General input handler for other controls
+document.querySelectorAll('input[type=range], input[type=color]').forEach(el => {
+  el.oninput = draw;
+});
+
+// Download
+$('can').onclick = () => {
+  const numColumns = getNumColumns();
+  const c = ($('code').value || '0').padEnd(numColumns, '0').slice(0, numColumns);
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode(); draw();
+};
+
+// Initial draw
+regeneratePatterns();
+draw();
+</script>

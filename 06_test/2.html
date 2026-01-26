@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Contour Code Puzzle (5-digit)</title>
+  <style>
+    :root{
+      --bg: #0b0c10;
+      --panel: #12141a;
+      --panel2: #161a22;
+      --text: #e9eef7;
+      --muted: #aab6cc;
+      --line: rgba(255,255,255,0.12);
+      --accent: #7cc4ff;
+    }
+    * { box-sizing: border-box; }
+    body{
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 700px at 15% 0%, #121a2b 0%, var(--bg) 55%);
+    }
+    header{
+      padding: 18px 18px 10px 18px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(to bottom, rgba(255,255,255,0.04), transparent);
+    }
+    h1{
+      margin: 0 0 8px 0;
+      font-size: 18px;
+      letter-spacing: 0.2px;
+      font-weight: 700;
+    }
+    .sub{
+      margin: 0 0 14px 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .controls{
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr;
+      padding: 12px 18px 18px 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(0,0,0,0.12);
+    }
+    .row{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: end;
+    }
+    .ctrl{
+      display: grid;
+      gap: 6px;
+      padding: 10px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      min-width: 180px;
+    }
+    .ctrl label{
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      user-select: none;
+    }
+    .ctrl .val{
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      opacity: 0.9;
+    }
+    input[type="number"], select{
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,0.25);
+      color: var(--text);
+      outline: none;
+    }
+    input[type="range"]{
+      width: 100%;
+      accent-color: var(--accent);
+    }
+    .btns{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    button{
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 650;
+      letter-spacing: 0.2px;
+    }
+    button:hover{ background: rgba(255,255,255,0.09); }
+    button:active{ transform: translateY(1px); }
+    .pill{
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .pill strong{ color: var(--text); font-weight: 700; }
+    .warn{
+      color: #ffcf7a;
+    }
+
+    main{
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+    section{
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    section h2{
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 750;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+    }
+
+    .referenceWrap{
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    canvas{
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: #fbf7ef;
+    }
+
+    .sceneGrid{
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      align-items: start;
+    }
+    figure{
+      margin: 0;
+      display: grid;
+      gap: 8px;
+    }
+    figcaption{
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .answerBar{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .answerBox{
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px dashed rgba(255,255,255,0.25);
+      border-radius: 12px;
+      background: rgba(0,0,0,0.12);
+      font-variant-numeric: tabular-nums;
+    }
+    .answerBox .label{
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .answerBox .code{
+      font-size: 18px;
+      letter-spacing: 3px;
+      font-weight: 900;
+    }
+
+    .tiny{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+      margin: 10px 0 0 0;
+    }
+    .tiny code{
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--line);
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Contour Code Puzzle — 5-digit answer</h1>
+    <p class="sub">
+      A random “topographic” contour map is generated. The <strong>Reference</strong> map shows a digit (0–9) in each region.
+      Below are <strong>five scenes</strong> with the <em>same</em> map but no digits; each scene marks one region with a <strong>?</strong>.
+      Decode the 5 digits (Scene 1→5) to get the final 5-digit number.
+    </p>
+  </header>
+
+  <div class="controls">
+    <div class="row">
+      <div class="ctrl" style="min-width:240px;">
+        <label>Seed <span class="val" id="seedHint"></span></label>
+        <input id="seed" type="number" value="12345" step="1" />
+      </div>
+
+      <div class="ctrl">
+        <label>Canvas width <span class="val" id="wVal"></span></label>
+        <input id="cw" type="range" min="420" max="900" value="640" step="10" />
+      </div>
+      <div class="ctrl">
+        <label>Canvas height <span class="val" id="hVal"></span></label>
+        <input id="ch" type="range" min="280" max="700" value="360" step="10" />
+      </div>
+
+      <div class="btns">
+        <button id="randomSeed">🎲 Random seed</button>
+        <button id="regenerate">Regenerate map</button>
+        <button id="newCode">New 5-digit code (same map)</button>
+        <span class="pill">Regions: <strong id="regionCount">—</strong></span>
+        <span class="pill">Labelable: <strong id="labelableCount">—</strong></span>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="ctrl">
+        <label>Contour levels <span class="val" id="bandsVal"></span></label>
+        <input id="bands" type="range" min="5" max="28" value="12" step="1" />
+      </div>
+
+      <div class="ctrl">
+        <label>Noise scale <span class="val" id="scaleVal"></span></label>
+        <input id="scale" type="range" min="0.60" max="3.20" value="1.60" step="0.05" />
+      </div>
+
+      <div class="ctrl">
+        <label>Warp amount <span class="val" id="warpVal"></span></label>
+        <input id="warp" type="range" min="0.00" max="0.90" value="0.26" step="0.01" />
+      </div>
+
+      <div class="ctrl">
+        <label>Detail (grid) <span class="val" id="detailVal"></span></label>
+        <input id="detail" type="range" min="120" max="340" value="220" step="10" />
+      </div>
+
+      <div class="ctrl">
+        <label>Line width <span class="val" id="lwVal"></span></label>
+        <input id="lineWidth" type="range" min="0.60" max="2.60" value="1.20" step="0.05" />
+      </div>
+
+      <div class="ctrl">
+        <label>Max font size <span class="val" id="fsVal"></span></label>
+        <input id="fontSize" type="range" min="14" max="54" value="28" step="1" />
+      </div>
+
+      <div class="ctrl">
+        <label>Auto-fit labels <span class="val" id="afVal"></span></label>
+        <select id="autoFit">
+          <option value="on" selected>On (recommended)</option>
+          <option value="off">Off (fixed size)</option>
+        </select>
+      </div>
+
+      <div class="ctrl">
+        <label>Fill mode <span class="val" id="fillVal"></span></label>
+        <select id="fillMode">
+          <option value="elevation" selected>Elevation bands</option>
+          <option value="region">Random regions</option>
+          <option value="none">None</option>
+        </select>
+      </div>
+
+      <div class="ctrl">
+        <label>Fill opacity <span class="val" id="faVal"></span></label>
+        <input id="fillAlpha" type="range" min="0.00" max="0.45" value="0.18" step="0.01" />
+      </div>
+    </div>
+
+    <div class="row">
+      <span class="pill" id="statusPill">Status: <strong id="statusText">Ready</strong></span>
+      <span class="pill warn" id="warnPill" style="display:none;">⚠ <strong id="warnText"></strong></span>
+    </div>
+  </div>
+
+  <main>
+    <section>
+      <h2>Reference map</h2>
+      <div class="referenceWrap">
+        <canvas id="ref"></canvas>
+      </div>
+      <p class="tiny">
+        Tip: The five scenes below show the same contours. Find the <code>?</code> region in the Reference to read its digit.
+      </p>
+    </section>
+
+    <section>
+      <h2>Scenes</h2>
+      <div class="sceneGrid">
+        <figure>
+          <canvas id="s0"></canvas>
+          <figcaption>Scene 1</figcaption>
+        </figure>
+        <figure>
+          <canvas id="s1"></canvas>
+          <figcaption>Scene 2</figcaption>
+        </figure>
+        <figure>
+          <canvas id="s2"></canvas>
+          <figcaption>Scene 3</figcaption>
+        </figure>
+        <figure>
+          <canvas id="s3"></canvas>
+          <figcaption>Scene 4</figcaption>
+        </figure>
+        <figure>
+          <canvas id="s4"></canvas>
+          <figcaption>Scene 5</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>Host / Debug</h2>
+      <div class="answerBar">
+        <div class="answerBox">
+          <span class="label">Answer:</span>
+          <span class="code" id="answerCode">•••••</span>
+        </div>
+        <div class="btns">
+          <button id="reveal">Reveal / Hide answer</button>
+          <button id="copy">Copy answer</button>
+          <button id="downloadRef">Download reference PNG</button>
+        </div>
+      </div>
+      <p class="tiny">
+        This section can be removed if you want a “player-only” version. The answer is the 5 digits from scenes 1→5.
+      </p>
+    </section>
+  </main>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Utilities ----------
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+
+  // Deterministic PRNG (Mulberry32)
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function() {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // 2D integer hash -> [0,1]
+  function hash2DInt(x, y, seed) {
+    // Use 32-bit math with imul. Keep everything unsigned-ish.
+    let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 1442695041);
+    h = (h ^ (h >>> 13)) >>> 0;
+    h = Math.imul(h, 1274126177) >>> 0;
+    h ^= (h >>> 16);
+    return (h >>> 0) / 4294967295;
+  }
+
+  // Smooth value noise in 2D
+  function valueNoise2D(x, y, seed) {
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const xf = x - xi;
+    const yf = y - yi;
+
+    const v00 = hash2DInt(xi,     yi,     seed);
+    const v10 = hash2DInt(xi + 1, yi,     seed);
+    const v01 = hash2DInt(xi,     yi + 1, seed);
+    const v11 = hash2DInt(xi + 1, yi + 1, seed);
+
+    const u = fade(xf);
+    const v = fade(yf);
+
+    const x1 = lerp(v00, v10, u);
+    const x2 = lerp(v01, v11, u);
+    return lerp(x1, x2, v); // 0..1
+  }
+
+  // Fractal Brownian Motion
+  function fbm(x, y, seed, octaves, persistence, lacunarity) {
+    let amp = 1.0;
+    let freq = 1.0;
+    let sum = 0.0;
+    let norm = 0.0;
+
+    for (let o = 0; o < octaves; o++) {
+      sum += amp * valueNoise2D(x * freq, y * freq, seed + o * 1013);
+      norm += amp;
+      amp *= persistence;
+      freq *= lacunarity;
+    }
+    return sum / norm; // ~0..1
+  }
+
+  function terrain01(nx, ny, p) {
+    // nx,ny in [0,1]
+    let x = nx, y = ny;
+
+    if (p.warp > 0) {
+      const wf = 2.25;
+      const wx = (fbm(x * wf, y * wf, p.seed + 101, 2, 0.5, 2.0) - 0.5) * p.warp;
+      const wy = (fbm(x * wf, y * wf, p.seed + 202, 2, 0.5, 2.0) - 0.5) * p.warp;
+      x += wx;
+      y += wy;
+    }
+
+    // Main terrain
+    let n = fbm(x * p.scale, y * p.scale, p.seed, p.octaves, p.persistence, p.lacunarity);
+
+    // Gentle contrast curve (keeps contours interesting)
+    // (This is mild so it stays "map-like".)
+    n = clamp((n - 0.5) * 1.15 + 0.5, 0, 1);
+
+    return n;
+  }
+
+  // ---------- Marching Squares (draw isolines) ----------
+  // Edges: 0=top (TL-TR), 1=right (TR-BR), 2=bottom (BR-BL), 3=left (BL-TL)
+  function interpPt(x1, y1, v1, x2, y2, v2, t) {
+    const dv = (v2 - v1);
+    const f = (Math.abs(dv) < 1e-9) ? 0.5 : (t - v1) / dv;
+    return { x: lerp(x1, x2, f), y: lerp(y1, y2, f) };
+  }
+
+  function marchingSquaresPath(ctx, corners, gridW, gridH, W, H, threshold) {
+    const stride = gridW + 1;
+    const stepX = W / gridW;
+    const stepY = H / gridH;
+
+    for (let j = 0; j < gridH; j++) {
+      const y0 = j * stepY;
+      const y1 = (j + 1) * stepY;
+
+      const row0 = j * stride;
+      const row1 = (j + 1) * stride;
+
+      for (let i = 0; i < gridW; i++) {
+        const x0 = i * stepX;
+        const x1 = (i + 1) * stepX;
+
+        const a = corners[row0 + i];       // TL
+        const b = corners[row0 + i + 1];   // TR
+        const c = corners[row1 + i + 1];   // BR
+        const d = corners[row1 + i];       // BL
+
+        let idx = 0;
+        if (a > threshold) idx |= 8;
+        if (b > threshold) idx |= 4;
+        if (c > threshold) idx |= 2;
+        if (d > threshold) idx |= 1;
+
+        if (idx === 0 || idx === 15) continue;
+
+        // Precompute edge intersection points
+        const p0 = interpPt(x0, y0, a, x1, y0, b, threshold); // top
+        const p1 = interpPt(x1, y0, b, x1, y1, c, threshold); // right
+        const p2 = interpPt(x1, y1, c, x0, y1, d, threshold); // bottom
+        const p3 = interpPt(x0, y1, d, x0, y0, a, threshold); // left
+
+        const center = (a + b + c + d) * 0.25;
+
+        // Helper: draw segment between two edge points
+        const seg = (e1, e2) => {
+          const P = [p0, p1, p2, p3];
+          ctx.moveTo(P[e1].x, P[e1].y);
+          ctx.lineTo(P[e2].x, P[e2].y);
+        };
+
+        switch (idx) {
+          case 1:  seg(3, 2); break;
+          case 2:  seg(2, 1); break;
+          case 3:  seg(3, 1); break;
+          case 4:  seg(0, 1); break;
+          case 5:
+            if (center > threshold) { seg(3, 0); seg(1, 2); }
+            else { seg(0, 1); seg(2, 3); }
+            break;
+          case 6:  seg(0, 2); break;
+          case 7:  seg(0, 3); break;
+          case 8:  seg(0, 3); break;
+          case 9:  seg(0, 2); break;
+          case 10:
+            if (center > threshold) { seg(0, 1); seg(2, 3); }
+            else { seg(3, 0); seg(1, 2); }
+            break;
+          case 11: seg(0, 1); break;
+          case 12: seg(3, 1); break;
+          case 13: seg(3, 2); break;
+          case 14: seg(2, 1); break;
+          default: break;
+        }
+      }
+    }
+  }
+
+  // ---------- Label drawing ----------
+  function drawTextBadge(ctx, x, y, text, fontPx, options = {}) {
+    const {
+      textColor = "rgba(25, 22, 18, 0.92)",
+      strokeColor = "rgba(255, 255, 255, 0.92)",
+      badgeFill = "rgba(255, 255, 255, 0.58)",
+      badgeStroke = "rgba(0, 0, 0, 0.08)",
+      weight = 800,
+      padding = 0.78, // badge radius multiplier
+    } = options;
+
+    const r = fontPx * padding;
+
+    // Badge circle
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = badgeFill;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, fontPx * 0.05);
+    ctx.strokeStyle = badgeStroke;
+    ctx.stroke();
+
+    // Text (outline + fill)
+    ctx.font = `${weight} ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+
+    ctx.lineWidth = Math.max(2, fontPx * 0.16);
+    ctx.strokeStyle = strokeColor;
+    ctx.strokeText(text, x, y);
+
+    ctx.fillStyle = textColor;
+    ctx.fillText(text, x, y);
+  }
+
+  // ---------- Puzzle generation ----------
+  function makeRegionColor(regionId, seed, alpha) {
+    // Stable pastel-ish color based on regionId and seed.
+    const u = hash2DInt(regionId, regionId ^ 0x9e3779b, seed ^ 0x7f4a7c15);
+    const v = hash2DInt(regionId + 11, regionId + 97, seed ^ 0x13579bdf);
+    const hue = Math.floor(20 + u * 320);           // 20..340
+    const sat = Math.floor(18 + v * 32);            // 18..50
+    const light = Math.floor(80 + (1 - v) * 12);    // 80..92
+    return `hsla(${hue}deg, ${sat}%, ${light}%, ${alpha})`;
+  }
+
+  function makeElevationColor(band, bands, alpha) {
+    // Warm “paper topo” shading: very light to slightly darker.
+    const t = bands <= 1 ? 0 : band / (bands - 1);
+    const hue = 42;             // warm tan
+    const sat = 28;
+    const light = Math.round(96 - t * 18); // 96 -> 78
+    return `hsla(${hue}deg, ${sat}%, ${light}%, ${alpha})`;
+  }
+
+  function computeField(params) {
+    const {
+      W, H,
+      gridW,
+      seed,
+      bands
+    } = params;
+
+    const gridH = Math.max(10, Math.round(gridW * (H / W)));
+    const stride = gridW + 1;
+    const corners = new Float32Array((gridW + 1) * (gridH + 1));
+    const bandAtCell = new Uint16Array(gridW * gridH);
+    const regionIdAtCell = new Int32Array(gridW * gridH);
+    regionIdAtCell.fill(-1);
+
+    // Corner heights for marching squares
+    for (let j = 0; j <= gridH; j++) {
+      const ny = j / gridH;
+      for (let i = 0; i <= gridW; i++) {
+        const nx = i / gridW;
+        corners[j * stride + i] = terrain01(nx, ny, params);
+      }
+    }
+
+    // Quantized band at cell centers
+    for (let j = 0; j < gridH; j++) {
+      const ny = (j + 0.5) / gridH;
+      for (let i = 0; i < gridW; i++) {
+        const nx = (i + 0.5) / gridW;
+        const h = terrain01(nx, ny, params);
+        const b = clamp(Math.floor(h * bands), 0, bands - 1);
+        bandAtCell[j * gridW + i] = b;
+      }
+    }
+
+    // Connected components on the cell grid -> "regions"
+    const regions = [];
+    let regionCount = 0;
+
+    for (let start = 0; start < gridW * gridH; start++) {
+      if (regionIdAtCell[start] !== -1) continue;
+
+      const targetBand = bandAtCell[start];
+
+      const stack = [start];
+      regionIdAtCell[start] = regionCount;
+
+      let area = 0;
+      let sumX = 0; // in "cell center" coords (i+0.5)
+      let sumY = 0;
+      const cells = []; // store indices of this region (temporary)
+
+      while (stack.length) {
+        const idx = stack.pop();
+        cells.push(idx);
+
+        area++;
+        const i = idx % gridW;
+        const j = (idx / gridW) | 0;
+        sumX += i + 0.5;
+        sumY += j + 0.5;
+
+        // 4-neighbors
+        // left
+        if (i > 0) {
+          const n = idx - 1;
+          if (regionIdAtCell[n] === -1 && bandAtCell[n] === targetBand) {
+            regionIdAtCell[n] = regionCount;
+            stack.push(n);
+          }
+        }
+        // right
+        if (i < gridW - 1) {
+          const n = idx + 1;
+          if (regionIdAtCell[n] === -1 && bandAtCell[n] === targetBand) {
+            regionIdAtCell[n] = regionCount;
+            stack.push(n);
+          }
+        }
+        // up
+        if (j > 0) {
+          const n = idx - gridW;
+          if (regionIdAtCell[n] === -1 && bandAtCell[n] === targetBand) {
+            regionIdAtCell[n] = regionCount;
+            stack.push(n);
+          }
+        }
+        // down
+        if (j < gridH - 1) {
+          const n = idx + gridW;
+          if (regionIdAtCell[n] === -1 && bandAtCell[n] === targetBand) {
+            regionIdAtCell[n] = regionCount;
+            stack.push(n);
+          }
+        }
+      }
+
+      // Centroid in cell coords
+      const cx = sumX / area;
+      const cy = sumY / area;
+
+      // Choose the cell closest to centroid (keeps label inside even for concave shapes)
+      let best = cells[0];
+      let bestD = Infinity;
+      for (let k = 0; k < cells.length; k++) {
+        const idx = cells[k];
+        const i = idx % gridW;
+        const j = (idx / gridW) | 0;
+        const dx = (i + 0.5) - cx;
+        const dy = (j + 0.5) - cy;
+        const d = dx * dx + dy * dy;
+        if (d < bestD) { bestD = d; best = idx; }
+      }
+
+      const bi = best % gridW;
+      const bj = (best / gridW) | 0;
+
+      const nx = (bi + 0.5) / gridW;
+      const ny = (bj + 0.5) / gridH;
+
+      regions.push({
+        id: regionCount,
+        band: targetBand,
+        areaCells: area,
+        nx, ny
+      });
+
+      regionCount++;
+    }
+
+    // Assign a digit to each region (may repeat)
+    const rngDigits = mulberry32((seed ^ 0xA5A5A5A5) >>> 0);
+    const digits = new Uint8Array(regions.length);
+    for (let r = 0; r < regions.length; r++) {
+      digits[r] = Math.floor(rngDigits() * 10);
+    }
+
+    return {
+      gridH,
+      corners,
+      bandAtCell,
+      regionIdAtCell,
+      regions,
+      digits
+    };
+  }
+
+  function pickQueryRegions(state, params) {
+    const rng = mulberry32((params.seed ^ 0xC0FFEE) >>> 0);
+
+    // Prefer larger regions so the question mark is clearly inside.
+    const sorted = state.regions.slice().sort((a, b) => b.areaCells - a.areaCells);
+
+    // Consider top N candidates
+    const candidateCount = Math.min(sorted.length, Math.max(18, 5 * 6));
+    const candidates = sorted.slice(0, candidateCount);
+
+    // Try to pick 5 unique region IDs if possible
+    const chosen = [];
+    const used = new Set();
+
+    while (chosen.length < 5) {
+      if (candidates.length === 0) break;
+      const pick = candidates[Math.floor(rng() * candidates.length)].id;
+      if (candidates.length >= 5) {
+        if (used.has(pick)) continue;
+        used.add(pick);
+      }
+      chosen.push(pick);
+    }
+
+    // If still not enough (extremely low levels), allow repeats from all regions
+    while (chosen.length < 5 && state.regions.length > 0) {
+      chosen.push(state.regions[Math.floor(rng() * state.regions.length)].id);
+    }
+
+    return chosen;
+  }
+
+  // ---------- Rendering ----------
+  function setCanvasLogicalSize(canvas, W, H, dpr) {
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+  }
+
+  function renderBaseMapToCanvas(baseCanvas, state, params) {
+    const dpr = window.devicePixelRatio || 1;
+    const ctx = setCanvasLogicalSize(baseCanvas, params.W, params.H, dpr);
+
+    // Paper background
+    ctx.clearRect(0, 0, params.W, params.H);
+    ctx.fillStyle = "#fbf7ef";
+    ctx.fillRect(0, 0, params.W, params.H);
+
+    // Subtle vignette / texture-ish overlay (no external images)
+    ctx.save();
+    const g = ctx.createRadialGradient(params.W * 0.35, params.H * 0.25, 10, params.W * 0.5, params.H * 0.5, Math.max(params.W, params.H));
+    g.addColorStop(0, "rgba(255,255,255,0.15)");
+    g.addColorStop(1, "rgba(0,0,0,0.08)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, params.W, params.H);
+    ctx.restore();
+
+    // Fill regions (optional)
+    const fillMode = params.fillMode;
+    const alpha = params.fillAlpha;
+
+    if (fillMode !== "none" && alpha > 0.001) {
+      const gridW = params.gridW;
+      const gridH = state.gridH;
+      const cellW = params.W / gridW;
+      const cellH = params.H / gridH;
+
+      // Draw cell rectangles (fast enough at these sizes)
+      for (let j = 0; j < gridH; j++) {
+        const y = j * cellH;
+        const row = j * gridW;
+        for (let i = 0; i < gridW; i++) {
+          const x = i * cellW;
+          if (fillMode === "elevation") {
+            const band = state.bandAtCell[row + i];
+            ctx.fillStyle = makeElevationColor(band, params.bands, alpha);
+          } else if (fillMode === "region") {
+            const rid = state.regionIdAtCell[row + i];
+            ctx.fillStyle = makeRegionColor(rid, params.seed, alpha);
+          }
+          ctx.fillRect(x, y, cellW + 0.5, cellH + 0.5);
+        }
+      }
+    }
+
+    // Contour lines
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    const baseLW = params.lineWidth;
+    const bands = params.bands;
+
+    for (let k = 1; k < bands; k++) {
+      const t = k / bands;
+      const isIndex = (k % 5 === 0); // index contours every 5 lines
+
+      ctx.beginPath();
+      marchingSquaresPath(ctx, state.corners, params.gridW, state.gridH, params.W, params.H, t);
+
+      ctx.lineWidth = isIndex ? baseLW * 1.55 : baseLW;
+      ctx.strokeStyle = isIndex ? "rgba(120, 90, 55, 0.70)" : "rgba(135, 104, 68, 0.52)";
+      ctx.stroke();
+    }
+
+    // Outer border line (subtle)
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(0,0,0,0.12)";
+    ctx.strokeRect(0.5, 0.5, params.W - 1, params.H - 1);
+
+    ctx.restore();
+
+    return { dpr };
+  }
+
+  function computeLabelFontPx(region, state, params) {
+    const maxFont = params.fontSize;
+    if (params.autoFit !== "on") return maxFont;
+
+    // Estimate region area in pixels
+    const cellW = params.W / params.gridW;
+    const cellH = params.H / state.gridH;
+    const areaPx = region.areaCells * cellW * cellH;
+
+    // A mild auto-fit rule: proportional to sqrt(area), clamped to [10, maxFont]
+    const fit = Math.sqrt(areaPx) * 0.18; // tuned
+    return clamp(fit, 10, maxFont);
+  }
+
+  function renderReference(canvas, baseMapCanvas, state, params) {
+    const dpr = window.devicePixelRatio || 1;
+    const ctx = setCanvasLogicalSize(canvas, params.W, params.H, dpr);
+
+    // Base map (pre-rendered)
+    ctx.drawImage(baseMapCanvas, 0, 0, params.W, params.H);
+
+    // Digits in each region
+    for (const r of state.regions) {
+      const x = r.nx * params.W;
+      const y = r.ny * params.H;
+      const fontPx = computeLabelFontPx(r, state, params);
+
+      drawTextBadge(ctx, x, y, String(state.digits[r.id]), fontPx, {
+        badgeFill: "rgba(255,255,255,0.66)",
+        badgeStroke: "rgba(0,0,0,0.10)",
+        textColor: "rgba(28, 22, 16, 0.92)",
+        strokeColor: "rgba(255,255,255,0.95)",
+        weight: 900,
+        padding: 0.78
+      });
+    }
+  }
+
+  function renderScene(canvas, baseMapCanvas, state, params, sceneIndex, queryRegionId) {
+    const dpr = window.devicePixelRatio || 1;
+    const ctx = setCanvasLogicalSize(canvas, params.W, params.H, dpr);
+
+    ctx.drawImage(baseMapCanvas, 0, 0, params.W, params.H);
+
+    // Put a question mark at the chosen region
+    const r = state.regions[queryRegionId];
+    if (r) {
+      const x = r.nx * params.W;
+      const y = r.ny * params.H;
+      const fontPx = Math.max(14, Math.round(computeLabelFontPx(r, state, params) * 1.1));
+
+      drawTextBadge(ctx, x, y, "?", fontPx, {
+        badgeFill: "rgba(255,255,255,0.72)",
+        badgeStroke: "rgba(0,0,0,0.12)",
+        textColor: "rgba(120, 20, 20, 0.92)",
+        strokeColor: "rgba(255,255,255,0.96)",
+        weight: 950,
+        padding: 0.86
+      });
+    }
+
+    // Small corner label “Scene N”
+    ctx.save();
+    ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+
+    // Background chip
+    const pad = 7;
+    const txt = `Scene ${sceneIndex + 1}`;
+    const metrics = ctx.measureText(txt);
+    const boxW = metrics.width + pad * 2;
+    const boxH = 18 + pad;
+
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.strokeStyle = "rgba(0,0,0,0.10)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, 10, 10, boxW, boxH, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(30,25,18,0.92)";
+    ctx.fillText(txt, 10 + pad, 10 + Math.round(pad * 0.6));
+    ctx.restore();
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  // ---------- App wiring ----------
+  const els = {
+    seed: document.getElementById("seed"),
+    cw: document.getElementById("cw"),
+    ch: document.getElementById("ch"),
+    bands: document.getElementById("bands"),
+    scale: document.getElementById("scale"),
+    warp: document.getElementById("warp"),
+    detail: document.getElementById("detail"),
+    lineWidth: document.getElementById("lineWidth"),
+    fontSize: document.getElementById("fontSize"),
+    autoFit: document.getElementById("autoFit"),
+    fillMode: document.getElementById("fillMode"),
+    fillAlpha: document.getElementById("fillAlpha"),
+
+    randomSeed: document.getElementById("randomSeed"),
+    regenerate: document.getElementById("regenerate"),
+    newCode: document.getElementById("newCode"),
+
+    ref: document.getElementById("ref"),
+    scenes: [
+      document.getElementById("s0"),
+      document.getElementById("s1"),
+      document.getElementById("s2"),
+      document.getElementById("s3"),
+      document.getElementById("s4")
+    ],
+
+    answerCode: document.getElementById("answerCode"),
+    reveal: document.getElementById("reveal"),
+    copy: document.getElementById("copy"),
+    downloadRef: document.getElementById("downloadRef"),
+
+    // value labels
+    seedHint: document.getElementById("seedHint"),
+    wVal: document.getElementById("wVal"),
+    hVal: document.getElementById("hVal"),
+    bandsVal: document.getElementById("bandsVal"),
+    scaleVal: document.getElementById("scaleVal"),
+    warpVal: document.getElementById("warpVal"),
+    detailVal: document.getElementById("detailVal"),
+    lwVal: document.getElementById("lwVal"),
+    fsVal: document.getElementById("fsVal"),
+    afVal: document.getElementById("afVal"),
+    fillVal: document.getElementById("fillVal"),
+    faVal: document.getElementById("faVal"),
+
+    regionCount: document.getElementById("regionCount"),
+    labelableCount: document.getElementById("labelableCount"),
+    statusText: document.getElementById("statusText"),
+    warnPill: document.getElementById("warnPill"),
+    warnText: document.getElementById("warnText"),
+  };
+
+  let puzzle = null;
+  let baseMapCanvas = document.createElement("canvas");
+  let answerVisible = false;
+
+  function readParams() {
+    const seed = (parseInt(els.seed.value, 10) || 0) >>> 0;
+    const W = parseInt(els.cw.value, 10) || 640;
+    const H = parseInt(els.ch.value, 10) || 360;
+
+    const bands = parseInt(els.bands.value, 10) || 12;
+    const scale = parseFloat(els.scale.value) || 1.6;
+    const warp = parseFloat(els.warp.value) || 0.25;
+    const gridW = parseInt(els.detail.value, 10) || 220;
+    const lineWidth = parseFloat(els.lineWidth.value) || 1.2;
+    const fontSize = parseInt(els.fontSize.value, 10) || 28;
+
+    const autoFit = els.autoFit.value;
+    const fillMode = els.fillMode.value;
+    const fillAlpha = parseFloat(els.fillAlpha.value) || 0.18;
+
+    return {
+      seed, W, H,
+      bands, scale, warp, gridW,
+      lineWidth, fontSize,
+      autoFit, fillMode, fillAlpha,
+      // fbm constants (exposed here if you want more sliders)
+      octaves: 4,
+      persistence: 0.52,
+      lacunarity: 2.02
+    };
+  }
+
+  function updateValueLabels(p) {
+    els.seedHint.textContent = `(${p.seed >>> 0})`;
+    els.wVal.textContent = `${p.W}px`;
+    els.hVal.textContent = `${p.H}px`;
+    els.bandsVal.textContent = `${p.bands}`;
+    els.scaleVal.textContent = `${p.scale.toFixed(2)}`;
+    els.warpVal.textContent = `${p.warp.toFixed(2)}`;
+    els.detailVal.textContent = `${p.gridW}`;
+    els.lwVal.textContent = `${p.lineWidth.toFixed(2)}`;
+    els.fsVal.textContent = `${p.fontSize}px`;
+    els.afVal.textContent = p.autoFit === "on" ? "On" : "Off";
+    els.fillVal.textContent = p.fillMode;
+    els.faVal.textContent = `${p.fillAlpha.toFixed(2)}`;
+  }
+
+  function setStatus(text) {
+    els.statusText.textContent = text;
+  }
+  function setWarning(msg) {
+    if (!msg) {
+      els.warnPill.style.display = "none";
+      return;
+    }
+    els.warnPill.style.display = "inline-flex";
+    els.warnText.textContent = msg;
+  }
+
+  function regenerateAll({ keepMap = false } = {}) {
+    const p = readParams();
+    updateValueLabels(p);
+
+    setStatus(keepMap ? "Picking new 5-digit code…" : "Generating map…");
+    setWarning("");
+
+    try {
+      if (!keepMap || !puzzle) {
+        // Compute field + regions + digits
+        puzzle = computeField(p);
+      }
+
+      // Pick 5 query regions for scenes
+      const query = pickQueryRegions(puzzle, p);
+
+      // Build base map once (to reuse)
+      renderBaseMapToCanvas(baseMapCanvas, puzzle, p);
+
+      // Render reference
+      renderReference(els.ref, baseMapCanvas, puzzle, p);
+
+      // Render scenes
+      for (let i = 0; i < 5; i++) {
+        renderScene(els.scenes[i], baseMapCanvas, puzzle, p, i, query[i]);
+      }
+
+      // Compute answer
+      const answer = query.map(rid => String(puzzle.digits[rid])).join("");
+      puzzle.query = query;
+      puzzle.answer = answer;
+
+      // Region counts
+      els.regionCount.textContent = String(puzzle.regions.length);
+
+      // Estimate "labelable" regions based on current font size (a quick heuristic)
+      const cellW = p.W / p.gridW;
+      const cellH = p.H / puzzle.gridH;
+      const minAreaPx = Math.pow(Math.max(10, p.fontSize * 0.8), 2) * 2.0;
+      const labelable = puzzle.regions.filter(r => (r.areaCells * cellW * cellH) >= minAreaPx).length;
+      els.labelableCount.textContent = String(labelable);
+
+      // Answer display (hidden by default)
+      if (answerVisible) {
+        els.answerCode.textContent = answer;
+      } else {
+        els.answerCode.textContent = "•••••";
+      }
+
+      // Warn if very low region count
+      if (puzzle.regions.length < 5) {
+        setWarning("Too few regions. Increase contour levels or noise scale.");
+      } else if (labelable < 5) {
+        setWarning("Many tiny regions. Reduce font size or increase levels/scale.");
+      }
+
+      setStatus("Ready");
+    } catch (err) {
+      console.error(err);
+      setStatus("Error");
+      setWarning("Generation failed (see console). Try lower Detail or fewer levels.");
+    }
+  }
+
+  // Debounce regen on slider moves
+  let regenTimer = null;
+  function scheduleRegen({ keepMap = false } = {}) {
+    if (regenTimer) clearTimeout(regenTimer);
+    regenTimer = setTimeout(() => {
+      regenTimer = null;
+      regenerateAll({ keepMap });
+    }, 60);
+  }
+
+  // ---------- Events ----------
+  // Sliders/inputs that change the map -> full regen
+  const mapInputs = [els.seed, els.cw, els.ch, els.bands, els.scale, els.warp, els.detail, els.lineWidth, els.fillMode, els.fillAlpha];
+  for (const el of mapInputs) {
+    el.addEventListener("input", () => scheduleRegen({ keepMap: false }));
+    el.addEventListener("change", () => scheduleRegen({ keepMap: false }));
+  }
+
+  // Label sizing can re-render without rebuilding the map, but easiest is just keepMap=true
+  const labelInputs = [els.fontSize, els.autoFit];
+  for (const el of labelInputs) {
+    el.addEventListener("input", () => scheduleRegen({ keepMap: true }));
+    el.addEventListener("change", () => scheduleRegen({ keepMap: true }));
+  }
+
+  els.randomSeed.addEventListener("click", () => {
+    const r = (Math.random() * 0xFFFFFFFF) >>> 0;
+    els.seed.value = String(r);
+    regenerateAll({ keepMap: false });
+  });
+
+  els.regenerate.addEventListener("click", () => regenerateAll({ keepMap: false }));
+  els.newCode.addEventListener("click", () => regenerateAll({ keepMap: true }));
+
+  els.reveal.addEventListener("click", () => {
+    answerVisible = !answerVisible;
+    if (puzzle?.answer) {
+      els.answerCode.textContent = answerVisible ? puzzle.answer : "•••••";
+    }
+  });
+
+  els.copy.addEventListener("click", async () => {
+    if (!puzzle?.answer) return;
+    try {
+      await navigator.clipboard.writeText(puzzle.answer);
+      setStatus("Copied!");
+      setTimeout(() => setStatus("Ready"), 600);
+    } catch {
+      // Fallback: select-like behavior
+      const tmp = document.createElement("textarea");
+      tmp.value = puzzle.answer;
+      document.body.appendChild(tmp);
+      tmp.select();
+      document.execCommand("copy");
+      tmp.remove();
+      setStatus("Copied!");
+      setTimeout(() => setStatus("Ready"), 600);
+    }
+  });
+
+  els.downloadRef.addEventListener("click", () => {
+    // Download the current reference canvas as PNG
+    const a = document.createElement("a");
+    a.download = `contour_reference_seed_${(readParams().seed>>>0)}.png`;
+    a.href = els.ref.toDataURL("image/png");
+    a.click();
+  });
+
+  // Initial render
+  regenerateAll({ keepMap: false });
+
+})();
+</script>
+</body>
+</html>
