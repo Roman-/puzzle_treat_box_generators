@@ -1,0 +1,406 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Outlined Digits Filter – generator</title>
+
+<!-- === size === -->
+<label>W <input id=w type=number value=800 min=100></label>
+<label>H <input id=h type=number value=300 min=100></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === rule settings === -->
+<label>Rule Type
+  <select id=ruleType>
+    <option value="color" selected>Color-based</option>
+    <option value="math">Math-based</option>
+  </select>
+  <button type=button data-t="ruleType">🎲</button>
+</label><br>
+
+<label>Current Rule: <strong id=currentRuleDisplay>—</strong></label>
+<button id=newRule type=button>🔀 New Rule</button><br>
+
+<hr>
+
+<!-- === visual settings === -->
+<label>Digit size (% of height)
+  <input id=digitSize type=range min=30 max=80 step=1 value=50>
+  <button type=button data-t="digitSize">🎲</button>
+</label><br>
+
+<label>Outline thickness (% of digit)
+  <input id=outlineThickness type=range min=3 max=20 step=1 value=8>
+  <button type=button data-t="outlineThickness">🎲</button>
+</label><br>
+
+<label>Distractors per gap
+  <input id=distractors type=range min=1 max=4 step=1 value=2>
+  <button type=button data-t="distractors">🎲</button>
+</label><br>
+
+
+<button id=randAll type=button>🎲 Randomize all</button>
+<button id=reset type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script src="../shared/colors.js"></script>
+<script>
+
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'outlined_digits_filter';
+
+// Rule definitions
+const RULES = {
+  color: COLORS.map((c, i) => ({
+    text: `Only ${c.name.toLowerCase()}`,
+    colorIndex: i,
+    check: (digit, colorIdx) => colorIdx === i,
+    getMatchingDigits: () => [0,1,2,3,4,5,6,7,8,9], // any digit can match color
+    needsColorMatch: true
+  })),
+  math: [
+    {
+      text: "Only even",
+      check: d => d % 2 === 0,
+      getMatchingDigits: () => [0, 2, 4, 6, 8]
+    },
+    {
+      text: "Only odd",
+      check: d => d % 2 === 1,
+      getMatchingDigits: () => [1, 3, 5, 7, 9]
+    },
+    {
+      text: "Only less than 5",
+      check: d => d < 5,
+      getMatchingDigits: () => [0, 1, 2, 3, 4]
+    },
+    {
+      text: "Only 5 or more",
+      check: d => d >= 5,
+      getMatchingDigits: () => [5, 6, 7, 8, 9]
+    }
+  ]
+};
+
+// Defaults
+const DEF = {
+  w: 800, h: 300, code: '1234',
+  ruleType: 'color', digitSize: 50,
+  outlineThickness: 8, distractors: 2
+};
+
+// Current state
+let currentRule = null;
+let displaySequence = []; // { digit, colorIndex, isAnswer }
+
+// Utility functions
+const randomElement = arr => arr[Math.floor(Math.random() * arr.length)];
+const shuffle = arr => {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
+function selectNewRule() {
+  let ruleType = $('ruleType').value;
+  if (ruleType === 'random') {
+    ruleType = randomElement(['color', 'shape', 'math']);
+  }
+  currentRule = randomElement(RULES[ruleType]);
+  $('currentRuleDisplay').textContent = currentRule.text;
+  regenerateCode();
+}
+
+function regenerateCode() {
+  if (!currentRule) {
+    selectNewRule();
+    return;
+  }
+
+  const codeLength = Math.min(5, Math.max(1, ($('code').value || '').length || 4));
+  const matchingDigits = currentRule.getMatchingDigits();
+
+  if (matchingDigits.length === 0) {
+    console.error('No matching digits for rule');
+    return;
+  }
+
+  // Generate a code using only matching digits
+  let newCode = '';
+  for (let i = 0; i < codeLength; i++) {
+    newCode += randomElement(matchingDigits);
+  }
+  $('code').value = newCode;
+
+  generateDisplaySequence();
+}
+
+function generateDisplaySequence() {
+  if (!currentRule) {
+    selectNewRule();
+    return;
+  }
+
+  const codeStr = $('code').value || '1234';
+  const codeDigits = codeStr.split('').map(Number);
+  const distractorsPerGap = +$('distractors').value;
+
+  // Get non-matching digits for distractors
+  const matchingSet = new Set(currentRule.getMatchingDigits());
+  const distractorDigits = [0,1,2,3,4,5,6,7,8,9].filter(d => !matchingSet.has(d));
+
+  // For color rules, all digits can be distractors (just with wrong color)
+  const useAnyDigitAsDistractor = currentRule.needsColorMatch;
+
+  displaySequence = [];
+
+  // Build the sequence: code digit, then distractors, repeat
+  for (let i = 0; i < codeDigits.length; i++) {
+    const codeDigit = codeDigits[i];
+
+    // Assign color to code digit
+    let codeColor;
+    if (currentRule.needsColorMatch) {
+      // For color rules, matching digits must have the target color
+      codeColor = currentRule.colorIndex;
+    } else {
+      // For non-color rules, assign random color
+      codeColor = Math.floor(Math.random() * 10);
+    }
+
+    displaySequence.push({
+      digit: codeDigit,
+      colorIndex: codeColor,
+      isAnswer: true
+    });
+
+    // Add distractors after each code digit (except the last)
+    if (i < codeDigits.length - 1) {
+      for (let j = 0; j < distractorsPerGap; j++) {
+        let distractorDigit;
+        let distractorColor;
+
+        if (useAnyDigitAsDistractor) {
+          // For color rules: any digit, but wrong color
+          distractorDigit = Math.floor(Math.random() * 10);
+          // Pick a color that's NOT the target color
+          const otherColors = [0,1,2,3,4,5,6,7,8,9].filter(c => c !== currentRule.colorIndex);
+          distractorColor = randomElement(otherColors);
+        } else {
+          // For shape/math rules: non-matching digit, any color
+          if (distractorDigits.length > 0) {
+            distractorDigit = randomElement(distractorDigits);
+          } else {
+            // Edge case: all digits match (shouldn't happen with good rules)
+            distractorDigit = Math.floor(Math.random() * 10);
+          }
+          distractorColor = Math.floor(Math.random() * 10);
+        }
+
+        displaySequence.push({
+          digit: distractorDigit,
+          colorIndex: distractorColor,
+          isAnswer: false
+        });
+      }
+    }
+  }
+}
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!currentRule || displaySequence.length === 0) {
+    generateDisplaySequence();
+  }
+
+  const digitSizePct = +$('digitSize').value / 100;
+  const outlineThicknessPct = +$('outlineThickness').value / 100;
+
+  // Layout calculations
+  const ruleAreaHeight = H * 0.25;
+  const digitAreaTop = ruleAreaHeight;
+  const digitAreaHeight = H - ruleAreaHeight;
+
+  const digitHeight = digitAreaHeight * digitSizePct;
+  const outlineWidth = digitHeight * outlineThicknessPct;
+
+  // Draw rule text
+  ctx.fillStyle = '#333';
+  ctx.font = `bold ${ruleAreaHeight * 0.5}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(currentRule.text, W / 2, ruleAreaHeight / 2);
+
+  // Draw separator line
+  ctx.beginPath();
+  ctx.moveTo(W * 0.05, ruleAreaHeight - 10);
+  ctx.lineTo(W * 0.95, ruleAreaHeight - 10);
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Calculate digit positions
+  const numDigits = displaySequence.length;
+  const digitSpacing = W / (numDigits + 1);
+  const digitY = digitAreaTop + digitAreaHeight / 2;
+
+  // Draw each digit
+  ctx.font = `bold ${digitHeight}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i < numDigits; i++) {
+    const { digit, colorIndex } = displaySequence[i];
+    const x = digitSpacing * (i + 1);
+
+    // Draw white fill first (background for the digit)
+    ctx.fillStyle = '#fff';
+    ctx.lineWidth = outlineWidth + 4;
+    ctx.strokeStyle = '#fff';
+    ctx.strokeText(digit.toString(), x, digitY);
+    ctx.fillText(digit.toString(), x, digitY);
+
+    // Draw colored outline
+    ctx.strokeStyle = COLOR_HEX[colorIndex];
+    ctx.lineWidth = outlineWidth;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(digit.toString(), x, digitY);
+
+    // Draw the digit fill (white) on top
+    ctx.fillStyle = '#fff';
+    ctx.fillText(digit.toString(), x, digitY);
+  }
+}
+
+// Event handlers
+function randCode() {
+  regenerateCode();
+}
+
+function randRuleType() {
+  const types = ['color', 'math'];
+  $('ruleType').value = randomElement(types);
+  selectNewRule();
+}
+
+function randDigitSize() {
+  $('digitSize').value = 30 + Math.floor(Math.random() * 50);
+}
+
+function randOutlineThickness() {
+  $('outlineThickness').value = 3 + Math.floor(Math.random() * 17);
+}
+
+function randDistractors() {
+  $('distractors').value = 1 + Math.floor(Math.random() * 4);
+  generateDisplaySequence();
+}
+
+const randFns = {
+  code: randCode,
+  ruleType: randRuleType,
+  digitSize: randDigitSize,
+  outlineThickness: randOutlineThickness,
+  distractors: randDistractors
+};
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => {
+    randFns[b.dataset.t]();
+    draw();
+  };
+});
+
+$('newRule').onclick = () => {
+  selectNewRule();
+  draw();
+};
+
+$('randAll').onclick = () => {
+  randRuleType();
+  randDigitSize();
+  randOutlineThickness();
+  randDistractors();
+  draw();
+};
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    el.value = DEF[k];
+  }
+  selectNewRule();
+  draw();
+};
+
+// Input change handlers
+$('code').oninput = () => {
+  // Validate code against current rule
+  const codeStr = $('code').value || '';
+  const codeDigits = codeStr.split('').map(Number);
+  const matchingDigits = new Set(currentRule ? currentRule.getMatchingDigits() : [0,1,2,3,4,5,6,7,8,9]);
+
+  // Check if all code digits match the rule (for non-color rules)
+  if (currentRule && !currentRule.needsColorMatch) {
+    const allMatch = codeDigits.every(d => matchingDigits.has(d));
+    if (!allMatch) {
+      // Code doesn't match rule - regenerate appropriate code
+      regenerateCode();
+      return;
+    }
+  }
+
+  generateDisplaySequence();
+  draw();
+};
+
+$('ruleType').onchange = () => {
+  selectNewRule();
+  draw();
+};
+
+$('distractors').oninput = () => {
+  generateDisplaySequence();
+  draw();
+};
+
+document.querySelectorAll('input[type=range]').forEach(el => {
+  if (el.id !== 'distractors') {
+    el.oninput = draw;
+  }
+});
+
+// Download
+$('can').onclick = () => {
+  const c = $('code').value || '0000';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  // Generate new puzzle after download
+  randCode();
+  draw();
+};
+
+// Initial setup
+selectNewRule();
+draw();
+
+</script>
