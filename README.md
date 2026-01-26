@@ -33,7 +33,7 @@ Click any image below to explore the generator and example output. All examples 
 [![Bar chart](03_bar_chart/bar_chart_1234.png)](03_bar_chart/)
 [![Colored circles](02_count_filled_circles_with_color/count_circles_color_1234.png)](02_count_filled_circles_with_color/)
 [![Words Spelled Out](04_words_spelled_out_custom_font/use_this_pic.png)](04_words_spelled_out_custom_font/)
-[![Color sequence circles](07_color_sequence_circles/example.png)](07_color_sequence_circles/)
+[![Color sequence circles](07_color_sequence_circles/color_sequence_circles_9484.png)](07_color_sequence_circles/)
 
 ## Shared utilities
 
