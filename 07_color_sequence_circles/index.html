@@ -57,6 +57,11 @@
   <button type=button data-t="variance">🎲</button>
 </label><br>
 
+<label>X jitter (× radius)
+  <input id=jitter type=range min=0 max=1.5 step=0.05 value=0>
+  <button type=button data-t="jitter">🎲</button>
+</label><br>
+
 <label><input id=shuffleLegend type=checkbox> Shuffle legend order</label><br>
 
 <button id=randAll type=button>🎲 Randomize all</button>
@@ -116,13 +121,15 @@ const DEF = {
   level: '2', radius: 0.30, overlap: 0.40,
   outline: 0.05, outlineColor: '#333333',
   legendSize: 0.05, minCircles: 13, variance: 0,
-  shuffleLegend: false
+  jitter: 0, shuffleLegend: false
 };
 
 // Store current patterns for "new pattern" button
 let currentPatterns = [];
 // Number of circles per column (can vary when variance > 0)
 let columnLengths = [];
+// X-offset jitter per circle per column (values from -1 to 1, scaled by jitter setting)
+let jitterOffsets = [];
 // Shuffled mapping: digitToColor[digit] = colorIndex
 // e.g., if digitToColor[0] = 5, then digit 0 displays as Purple
 let digitToColor = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -171,6 +178,11 @@ function regeneratePatterns() {
   columnLengths = digitsArr.map(() => minCircles + Math.floor(Math.random() * (variance + 1)));
 
   currentPatterns = digitsArr.map((digit, i) => generateColorSequenceForDigit(level, digit, columnLengths[i]));
+
+  // Generate jitter offsets for each circle (random value from -1 to 1)
+  jitterOffsets = columnLengths.map(len =>
+    Array.from({length: len}, () => Math.random() * 2 - 1)
+  );
 
   // Shuffle which color each digit represents
   digitToColor = shuffled([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -242,6 +254,7 @@ function draw() {
   const radiusFactor = +$('radius').value;
   const overlapFactor = +$('overlap').value;
   const outlineFactor = +$('outline').value;
+  const jitterFactor = +$('jitter').value;
 
   // For each column (scene)
   for (let scene = 0; scene < numColumns; scene++) {
@@ -249,7 +262,7 @@ function draw() {
     if (!colorSequence) continue;
 
     const numCircles = columnLengths[scene];
-    const centerX = sceneWidth * scene + sceneWidth / 2;
+    const baseCenterX = sceneWidth * scene + sceneWidth / 2;
     const radius = sceneWidth * radiusFactor / 2;
     const diameter = radius * 2;
     const verticalStep = diameter * (1 - overlapFactor);
@@ -264,6 +277,9 @@ function draw() {
     for (let i = 0; i < numCircles; i++) {
       const y = startY + i * verticalStep;
       const isAnswer = (i === numCircles - 1);
+      // Apply jitter offset (scaled by radius and jitter factor)
+      const xOffset = jitterOffsets[scene]?.[i] * radius * jitterFactor || 0;
+      const centerX = baseCenterX + xOffset;
 
       ctx.beginPath();
       ctx.arc(centerX, y, radius, 0, Math.PI * 2);
@@ -312,6 +328,7 @@ function randOutlineColor() { $('outlineColor').value = '#' + (Math.random() * 0
 function randLegendSize() { $('legendSize').value = (0.03 + Math.random() * 0.05).toFixed(3); }
 function randMinCircles() { $('minCircles').value = 5 + Math.floor(Math.random() * 20); regeneratePatterns(); }
 function randVariance() { $('variance').value = Math.floor(Math.random() * 8); regeneratePatterns(); }
+function randJitter() { $('jitter').value = (Math.random() * 1.5).toFixed(2); }
 
 const randFns = {
   code: randCode,
@@ -322,7 +339,8 @@ const randFns = {
   outlineColor: randOutlineColor,
   legendSize: randLegendSize,
   minCircles: randMinCircles,
-  variance: randVariance
+  variance: randVariance,
+  jitter: randJitter
 };
 
 document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { randFns[b.dataset.t](); draw(); });
