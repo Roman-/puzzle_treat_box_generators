@@ -37,8 +37,8 @@
   <button type=button data-t="outlineThickness">🎲</button>
 </label><br>
 
-<label>Distractors per gap
-  <input id=distractors type=range min=1 max=4 step=1 value=2>
+<label>Total distractors
+  <input id=distractors type=range min=2 max=12 step=1 value=6>
   <button type=button data-t="distractors">🎲</button>
 </label><br>
 
@@ -94,7 +94,7 @@ const RULES = {
 const DEF = {
   w: 800, h: 300, code: '1234',
   ruleType: 'color', digitSize: 50,
-  outlineThickness: 8, distractors: 2
+  outlineThickness: 8, distractors: 6
 };
 
 // Current state
@@ -153,7 +153,7 @@ function generateDisplaySequence() {
 
   const codeStr = $('code').value || '1234';
   const codeDigits = codeStr.split('').map(Number);
-  const distractorsPerGap = +$('distractors').value;
+  const totalDistractors = +$('distractors').value;
 
   // Get non-matching digits for distractors
   const matchingSet = new Set(currentRule.getMatchingDigits());
@@ -162,58 +162,74 @@ function generateDisplaySequence() {
   // For color rules, all digits can be distractors (just with wrong color)
   const useAnyDigitAsDistractor = currentRule.needsColorMatch;
 
-  displaySequence = [];
-
-  // Build the sequence: code digit, then distractors, repeat
-  for (let i = 0; i < codeDigits.length; i++) {
-    const codeDigit = codeDigits[i];
-
-    // Assign color to code digit
+  // Create answer entries
+  const answerEntries = codeDigits.map(codeDigit => {
     let codeColor;
     if (currentRule.needsColorMatch) {
-      // For color rules, matching digits must have the target color
       codeColor = currentRule.colorIndex;
     } else {
-      // For non-color rules, assign random color
       codeColor = Math.floor(Math.random() * 10);
     }
-
-    displaySequence.push({
+    return {
       digit: codeDigit,
       colorIndex: codeColor,
       isAnswer: true
-    });
+    };
+  });
 
-    // Add distractors after each code digit (except the last)
-    if (i < codeDigits.length - 1) {
-      for (let j = 0; j < distractorsPerGap; j++) {
-        let distractorDigit;
-        let distractorColor;
+  // Create distractor entries
+  const distractorEntries = [];
+  for (let j = 0; j < totalDistractors; j++) {
+    let distractorDigit;
+    let distractorColor;
 
-        if (useAnyDigitAsDistractor) {
-          // For color rules: any digit, but wrong color
-          distractorDigit = Math.floor(Math.random() * 10);
-          // Pick a color that's NOT the target color
-          const otherColors = [0,1,2,3,4,5,6,7,8,9].filter(c => c !== currentRule.colorIndex);
-          distractorColor = randomElement(otherColors);
-        } else {
-          // For shape/math rules: non-matching digit, any color
-          if (distractorDigits.length > 0) {
-            distractorDigit = randomElement(distractorDigits);
-          } else {
-            // Edge case: all digits match (shouldn't happen with good rules)
-            distractorDigit = Math.floor(Math.random() * 10);
-          }
-          distractorColor = Math.floor(Math.random() * 10);
-        }
-
-        displaySequence.push({
-          digit: distractorDigit,
-          colorIndex: distractorColor,
-          isAnswer: false
-        });
+    if (useAnyDigitAsDistractor) {
+      distractorDigit = Math.floor(Math.random() * 10);
+      const otherColors = [0,1,2,3,4,5,6,7,8,9].filter(c => c !== currentRule.colorIndex);
+      distractorColor = randomElement(otherColors);
+    } else {
+      if (distractorDigits.length > 0) {
+        distractorDigit = randomElement(distractorDigits);
+      } else {
+        distractorDigit = Math.floor(Math.random() * 10);
       }
+      distractorColor = Math.floor(Math.random() * 10);
     }
+
+    distractorEntries.push({
+      digit: distractorDigit,
+      colorIndex: distractorColor,
+      isAnswer: false
+    });
+  }
+
+  // Randomly distribute distractors across all possible slots
+  // Slots: before first answer, between answers, after last answer
+  // This makes it unpredictable - first/last digit shown may not be an answer
+  const numSlots = codeDigits.length + 1; // before, between each, and after
+  const slotCounts = new Array(numSlots).fill(0);
+
+  // Distribute each distractor to a random slot
+  for (let i = 0; i < totalDistractors; i++) {
+    const slotIndex = Math.floor(Math.random() * numSlots);
+    slotCounts[slotIndex]++;
+  }
+
+  // Build final sequence: [distractors], answer, [distractors], answer, ... [distractors]
+  displaySequence = [];
+  let distractorIdx = 0;
+
+  for (let i = 0; i < answerEntries.length; i++) {
+    // Add distractors for slot before this answer
+    for (let j = 0; j < slotCounts[i]; j++) {
+      displaySequence.push(distractorEntries[distractorIdx++]);
+    }
+    displaySequence.push(answerEntries[i]);
+  }
+
+  // Add trailing distractors (last slot)
+  for (let j = 0; j < slotCounts[numSlots - 1]; j++) {
+    displaySequence.push(distractorEntries[distractorIdx++]);
   }
 }
 
@@ -308,7 +324,7 @@ function randOutlineThickness() {
 }
 
 function randDistractors() {
-  $('distractors').value = 1 + Math.floor(Math.random() * 4);
+  $('distractors').value = 2 + Math.floor(Math.random() * 11);
   generateDisplaySequence();
 }
 

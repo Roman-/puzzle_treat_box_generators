@@ -1,0 +1,306 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Shape Framed Digits – generator</title>
+
+<!-- === size === -->
+<label>W <input id=w type=number value=800 min=100></label>
+<label>H <input id=h type=number value=300 min=100></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === settings === -->
+<label>Distractors per gap
+  <input id=distractors type=range min=1 max=4 step=1 value=2>
+  <button type=button data-t="distractors">🎲</button>
+</label><br>
+
+<label>Shape size (% of height)
+  <input id=shapeSize type=range min=30 max=70 step=1 value=50>
+  <button type=button data-t="shapeSize">🎲</button>
+</label><br>
+
+<label>Stroke thickness
+  <input id=strokeWidth type=range min=1 max=8 step=0.5 value=3>
+  <button type=button data-t="strokeWidth">🎲</button>
+</label><br>
+
+<button id=randAll type=button>🎲 Randomize all</button>
+<button id=reset type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'shape_framed_digits';
+
+// Shape definitions
+const SHAPES = [
+  { name: 'circles', draw: drawCircle },
+  { name: 'triangles', draw: drawTriangle },
+  { name: 'squares', draw: drawSquare },
+  { name: 'stars', draw: drawStar },
+  { name: 'hearts', draw: drawHeart }
+];
+
+function drawCircle(ctx, cx, cy, size) {
+  ctx.beginPath();
+  ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawTriangle(ctx, cx, cy, size) {
+  const r = size / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r);
+  ctx.lineTo(cx + r * 0.866, cy + r * 0.5);
+  ctx.lineTo(cx - r * 0.866, cy + r * 0.5);
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function drawSquare(ctx, cx, cy, size) {
+  const half = size / 2;
+  ctx.strokeRect(cx - half, cy - half, size, size);
+}
+
+function drawStar(ctx, cx, cy, size) {
+  const outerR = size / 2;
+  const innerR = outerR * 0.4;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const angle = (i * Math.PI / 5) - Math.PI / 2;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function drawHeart(ctx, cx, cy, size) {
+  const s = size * 0.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + s * 0.6);
+  ctx.bezierCurveTo(cx - s * 1.1, cy + s * 0.1, cx - s * 0.9, cy - s * 0.8, cx, cy - s * 0.3);
+  ctx.bezierCurveTo(cx + s * 0.9, cy - s * 0.8, cx + s * 1.1, cy + s * 0.1, cx, cy + s * 0.6);
+  ctx.stroke();
+}
+
+// Defaults
+const DEF = {
+  w: 800, h: 300, code: '1234',
+  distractors: 2, shapeSize: 50, strokeWidth: 3
+};
+
+// Current state
+let targetShapeIndex = 0;
+let displaySequence = []; // { digit, shapeIndex, isAnswer }
+
+// Utility
+const randomElement = arr => arr[Math.floor(Math.random() * arr.length)];
+const randomInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+
+function generateDisplaySequence() {
+  const codeStr = $('code').value || '1234';
+  const codeDigits = codeStr.split('').map(Number);
+  const distractorsPerGap = +$('distractors').value;
+
+  // Select random target shape
+  targetShapeIndex = randomInt(0, SHAPES.length - 1);
+
+  // Get non-target shape indices
+  const otherShapes = [];
+  for (let i = 0; i < SHAPES.length; i++) {
+    if (i !== targetShapeIndex) otherShapes.push(i);
+  }
+
+  displaySequence = [];
+
+  // Build sequence: code digit (target shape), then distractors, repeat
+  for (let i = 0; i < codeDigits.length; i++) {
+    // Add code digit with target shape
+    displaySequence.push({
+      digit: codeDigits[i],
+      shapeIndex: targetShapeIndex,
+      isAnswer: true
+    });
+
+    // Add distractors after each code digit (except the last)
+    if (i < codeDigits.length - 1) {
+      for (let j = 0; j < distractorsPerGap; j++) {
+        displaySequence.push({
+          digit: randomInt(0, 9),
+          shapeIndex: randomElement(otherShapes),
+          isAnswer: false
+        });
+      }
+    }
+  }
+}
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  if (displaySequence.length === 0) {
+    generateDisplaySequence();
+  }
+
+  const shapeSizePct = +$('shapeSize').value / 100;
+  const strokeWidth = +$('strokeWidth').value;
+
+  // Layout calculations
+  const ruleAreaHeight = H * 0.22;
+  const shapeAreaTop = ruleAreaHeight;
+  const shapeAreaHeight = H - ruleAreaHeight;
+
+  const shapeSize = shapeAreaHeight * shapeSizePct;
+  const digitSize = shapeSize * 0.5;
+
+  // Draw rule text
+  const ruleName = SHAPES[targetShapeIndex].name;
+  ctx.fillStyle = '#333';
+  ctx.font = `bold ${ruleAreaHeight * 0.55}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`Only ${ruleName}`, W / 2, ruleAreaHeight / 2);
+
+  // Draw separator line
+  ctx.beginPath();
+  ctx.moveTo(W * 0.05, ruleAreaHeight - 8);
+  ctx.lineTo(W * 0.95, ruleAreaHeight - 8);
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Calculate shape positions
+  const numShapes = displaySequence.length;
+  const spacing = W / (numShapes + 1);
+  const shapeY = shapeAreaTop + shapeAreaHeight / 2;
+
+  // Draw each framed digit
+  ctx.lineWidth = strokeWidth;
+  ctx.strokeStyle = '#444';
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  for (let i = 0; i < numShapes; i++) {
+    const { digit, shapeIndex } = displaySequence[i];
+    const x = spacing * (i + 1);
+
+    // Draw shape
+    SHAPES[shapeIndex].draw(ctx, x, shapeY, shapeSize);
+
+    // Draw digit
+    ctx.fillStyle = '#000';
+    ctx.font = `bold ${digitSize}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(digit.toString(), x, shapeY);
+  }
+}
+
+// Event handlers
+function randCode() {
+  const len = ($('code').value || '').length || 4;
+  let code = '';
+  for (let i = 0; i < len; i++) {
+    code += randomInt(0, 9);
+  }
+  $('code').value = code;
+  generateDisplaySequence();
+}
+
+function randDistractors() {
+  $('distractors').value = randomInt(1, 4);
+  generateDisplaySequence();
+}
+
+function randShapeSize() {
+  $('shapeSize').value = randomInt(30, 70);
+}
+
+function randStrokeWidth() {
+  $('strokeWidth').value = (1 + Math.random() * 7).toFixed(1);
+}
+
+const randFns = {
+  code: randCode,
+  distractors: randDistractors,
+  shapeSize: randShapeSize,
+  strokeWidth: randStrokeWidth
+};
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => {
+    randFns[b.dataset.t]();
+    draw();
+  };
+});
+
+$('randAll').onclick = () => {
+  randCode();
+  randDistractors();
+  randShapeSize();
+  randStrokeWidth();
+  draw();
+};
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    el.value = DEF[k];
+  }
+  generateDisplaySequence();
+  draw();
+};
+
+// Input handlers
+$('code').oninput = () => {
+  generateDisplaySequence();
+  draw();
+};
+
+$('distractors').oninput = () => {
+  generateDisplaySequence();
+  draw();
+};
+
+document.querySelectorAll('input[type=range]').forEach(el => {
+  if (el.id !== 'distractors') {
+    el.oninput = draw;
+  }
+});
+
+// Download
+$('can').onclick = () => {
+  const c = $('code').value || '0000';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  // Generate new puzzle after download
+  randCode();
+  draw();
+};
+
+// Initial setup
+generateDisplaySequence();
+draw();
+
+</script>

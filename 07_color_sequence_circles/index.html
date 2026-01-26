@@ -15,6 +15,7 @@
 <!-- === creativity === -->
 <label>Difficulty (pattern complexity)
   <select id=level>
+    <option value=0>Level 0 - All same color</option>
     <option value=1>Level 1 - Two colors alternating</option>
     <option value=2 selected>Level 2 - Simple patterns</option>
     <option value=3>Level 3 - Medium patterns</option>
@@ -320,7 +321,7 @@ function randCode() {
   $('code').value = (Math.random() * max | 0).toString().padStart(numDigits, '0');
   regeneratePatterns();
 }
-function randLevel() { $('level').value = (Math.random() * 4 + 1 | 0).toString(); regeneratePatterns(); }
+function randLevel() { $('level').value = (Math.random() * 5 | 0).toString(); regeneratePatterns(); }
 function randRadius() { $('radius').value = (0.15 + Math.random() * 0.85).toFixed(2); }
 function randOverlap() { $('overlap').value = (0.20 + Math.random() * 0.75).toFixed(2); }
 function randOutline() { $('outline').value = (Math.random() * 0.15).toFixed(2); }
