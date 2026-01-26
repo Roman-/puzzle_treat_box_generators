@@ -47,6 +47,16 @@
   <button type=button data-t="legendSize">🎲</button>
 </label><br>
 
+<label>Min circles per column
+  <input id=minCircles type=number min=3 max=30 value=13>
+  <button type=button data-t="minCircles">🎲</button>
+</label><br>
+
+<label>Variance (adds 0 to N circles)
+  <input id=variance type=number min=0 max=10 value=0>
+  <button type=button data-t="variance">🎲</button>
+</label><br>
+
 <label><input id=shuffleLegend type=checkbox> Shuffle legend order</label><br>
 
 <button id=randAll type=button>🎲 Randomize all</button>
@@ -97,7 +107,6 @@ const generateSequence = (level, length) => {
 const $ = id => document.getElementById(id);
 const ctx = $('can').getContext('2d');
 const NAME = 'color_sequence_circles';
-const CIRCLES_PER_COLUMN = 13;
 
 // Get number of columns from code length (1-5)
 const getNumColumns = () => Math.min(5, Math.max(1, ($('code').value || '').length || 4));
@@ -106,23 +115,26 @@ const DEF = {
   w: 800, h: 600, code: '1234',
   level: '2', radius: 0.30, overlap: 0.40,
   outline: 0.05, outlineColor: '#333333',
-  legendSize: 0.05, shuffleLegend: false
+  legendSize: 0.05, minCircles: 13, variance: 0,
+  shuffleLegend: false
 };
 
 // Store current patterns for "new pattern" button
 let currentPatterns = [];
+// Number of circles per column (can vary when variance > 0)
+let columnLengths = [];
 // Shuffled mapping: digitToColor[digit] = colorIndex
 // e.g., if digitToColor[0] = 5, then digit 0 displays as Purple
 let digitToColor = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 // Legend display order (which digit appears in which position)
 let legendOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-function generateColorSequenceForDigit(level, answerDigit) {
-  // Generate pattern indices for 13 positions
-  const patternIndices = generateSequence(level, CIRCLES_PER_COLUMN);
+function generateColorSequenceForDigit(level, answerDigit, numCircles) {
+  // Generate pattern indices for numCircles positions
+  const patternIndices = generateSequence(level, numCircles);
 
   // Find which pattern index is at the answer position (last position)
-  const answerPatternIndex = patternIndices[CIRCLES_PER_COLUMN - 1];
+  const answerPatternIndex = patternIndices[numCircles - 1];
 
   // Find all unique pattern indices used
   const uniqueIndices = [...new Set(patternIndices)];
@@ -152,8 +164,13 @@ function regeneratePatterns() {
   const numColumns = getNumColumns();
   const digitsArr = codeStr.padEnd(numColumns, '0').slice(0, numColumns).split('').map(Number);
   const level = +$('level').value;
+  const minCircles = +$('minCircles').value;
+  const variance = +$('variance').value;
 
-  currentPatterns = digitsArr.map(digit => generateColorSequenceForDigit(level, digit));
+  // Generate column lengths (min + random variance for each column)
+  columnLengths = digitsArr.map(() => minCircles + Math.floor(Math.random() * (variance + 1)));
+
+  currentPatterns = digitsArr.map((digit, i) => generateColorSequenceForDigit(level, digit, columnLengths[i]));
 
   // Shuffle which color each digit represents
   digitToColor = shuffled([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -231,21 +248,22 @@ function draw() {
     const colorSequence = currentPatterns[scene];
     if (!colorSequence) continue;
 
+    const numCircles = columnLengths[scene];
     const centerX = sceneWidth * scene + sceneWidth / 2;
     const radius = sceneWidth * radiusFactor / 2;
     const diameter = radius * 2;
     const verticalStep = diameter * (1 - overlapFactor);
 
     // Calculate total height needed
-    const totalHeight = diameter + (CIRCLES_PER_COLUMN - 1) * verticalStep;
+    const totalHeight = diameter + (numCircles - 1) * verticalStep;
 
     // Center vertically in available space
     const startY = circleAreaTop + (circleAreaHeight - totalHeight) / 2 + radius;
 
     // Draw circles from top to bottom
-    for (let i = 0; i < CIRCLES_PER_COLUMN; i++) {
+    for (let i = 0; i < numCircles; i++) {
       const y = startY + i * verticalStep;
-      const isAnswer = (i === CIRCLES_PER_COLUMN - 1);
+      const isAnswer = (i === numCircles - 1);
 
       ctx.beginPath();
       ctx.arc(centerX, y, radius, 0, Math.PI * 2);
@@ -292,6 +310,8 @@ function randOverlap() { $('overlap').value = (0.20 + Math.random() * 0.75).toFi
 function randOutline() { $('outline').value = (Math.random() * 0.15).toFixed(2); }
 function randOutlineColor() { $('outlineColor').value = '#' + (Math.random() * 0x555555 | 0).toString(16).padStart(6, '0'); }
 function randLegendSize() { $('legendSize').value = (0.03 + Math.random() * 0.05).toFixed(3); }
+function randMinCircles() { $('minCircles').value = 5 + Math.floor(Math.random() * 20); regeneratePatterns(); }
+function randVariance() { $('variance').value = Math.floor(Math.random() * 8); regeneratePatterns(); }
 
 const randFns = {
   code: randCode,
@@ -300,7 +320,9 @@ const randFns = {
   overlap: randOverlap,
   outline: randOutline,
   outlineColor: randOutlineColor,
-  legendSize: randLegendSize
+  legendSize: randLegendSize,
+  minCircles: randMinCircles,
+  variance: randVariance
 };
 
 document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { randFns[b.dataset.t](); draw(); });
@@ -326,9 +348,11 @@ $('newPattern').onclick = () => {
   draw();
 };
 
-// Regenerate patterns when code or level changes
+// Regenerate patterns when code, level, or circle count changes
 $('code').oninput = () => { regeneratePatterns(); draw(); };
 $('level').onchange = () => { regeneratePatterns(); draw(); };
+$('minCircles').oninput = () => { regeneratePatterns(); draw(); };
+$('variance').oninput = () => { regeneratePatterns(); draw(); };
 $('shuffleLegend').onchange = () => { regeneratePatterns(); draw(); };
 
 // General input handler for other controls
