@@ -7,16 +7,16 @@
  */
 
 const COLORS = [
-  { index: 0, hex: '#E53935', name: 'Red' },
-  { index: 1, hex: '#FB8C00', name: 'Orange' },
-  { index: 2, hex: '#FDD835', name: 'Yellow' },
-  { index: 3, hex: '#7CB342', name: 'Lime' },
-  { index: 4, hex: '#43A047', name: 'Green' },
-  { index: 5, hex: '#00ACC1', name: 'Teal' },
-  { index: 6, hex: '#1E88E5', name: 'Blue' },
-  { index: 7, hex: '#5E35B1', name: 'Indigo' },
-  { index: 8, hex: '#8E24AA', name: 'Purple' },
-  { index: 9, hex: '#D81B60', name: 'Pink' },
+  { index: 0, hex: '#eb0c0c', name: 'Red' },
+  { index: 1, hex: '#0D47A1', name: 'Blue' },
+  { index: 2, hex: '#43A047', name: 'Green' },
+  { index: 3, hex: '#FDD835', name: 'Yellow' },
+  { index: 4, hex: '#FB8C00', name: 'Orange' },
+  { index: 5, hex: '#8E24AA', name: 'Purple' },
+  { index: 6, hex: '#00CED1', name: 'Aqua' },
+  { index: 7, hex: '#9e375a', name: 'Maroon' },
+  { index: 8, hex: '#6D4C41', name: 'Brown' },
+  { index: 9, hex: '#616161', name: 'Dark Grey' },
 ];
 
 // Simple array of hex values for quick access
