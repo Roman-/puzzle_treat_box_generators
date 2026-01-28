@@ -1,0 +1,403 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pattern Grid Deduction (Mirror Symmetry) – generator</title>
+
+<!-- === size === -->
+<label>W <input id=w type=number value=800 min=100></label>
+<label>H <input id=h type=number value=400 min=100></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === matrix size === -->
+<label>Matrix W <input id=matrixW type=number value=6 min=2 max=12 style="width:50px"></label>
+<label>Matrix H <input id=matrixH type=number value=6 min=2 max=12 style="width:50px"></label><br>
+
+<label>Pattern mode
+  <select id=patternMode>
+    <option value="vertical" selected>Vertical symmetry</option>
+    <option value="horizontal">Horizontal symmetry</option>
+    <option value="both">Both (H + V)</option>
+  </select>
+</label><br>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Cell size (% of panel)
+  <input id=cellSize type=range min=15 max=40 step=1 value=25>
+</label><br>
+
+<label>Display mode
+  <select id=displayMode>
+    <option value="both" selected>Color + Digit</option>
+    <option value="color">Color only</option>
+    <option value="digit">Digit only</option>
+  </select>
+</label><br>
+
+<label><input id=showAxis type=checkbox checked> Show symmetry axis</label><br>
+
+<label>Axis style
+  <select id=axisStyle>
+    <option value="solid" selected>Solid line</option>
+    <option value="dashed">Dashed line</option>
+    <option value="gradient">Gradient fade</option>
+  </select>
+</label><br>
+
+<label>Panel spacing
+  <input id=panelSpacing type=range min=10 max=60 step=2 value=30>
+</label><br>
+
+<label>Grid border
+  <input id=gridBorder type=range min=1 max=5 step=0.5 value=2>
+</label><br>
+
+<label>Legend size (% of height)
+  <input id=legendSize type=range min=3 max=10 step=0.5 value=5>
+</label><br>
+
+<button id=reset type=button>🔄 Restore defaults</button>
+<button id=newPattern type=button>🔀 New patterns (same code)</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script src="../shared/colors.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'pattern_grid_mirror';
+
+const DEF = {
+  w: 800, h: 400, code: '1234',
+  matrixW: 6, matrixH: 6, patternMode: 'vertical',
+  cellSize: 25, displayMode: 'both', showAxis: true,
+  axisStyle: 'solid', panelSpacing: 30, gridBorder: 2,
+  legendSize: 5
+};
+
+// Store generated grids
+let grids = [];
+
+function generateGrid(answerDigit, cols, rows, mode) {
+  const grid = [];
+
+  // Initialize grid with random values
+  for (let r = 0; r < rows; r++) {
+    grid.push([]);
+    for (let c = 0; c < cols; c++) {
+      grid[r].push(Math.floor(Math.random() * 10));
+    }
+  }
+
+  // Apply symmetry based on mode
+  if (mode === 'vertical' || mode === 'both') {
+    // Mirror left to right
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < Math.floor(cols / 2); c++) {
+        grid[r][cols - 1 - c] = grid[r][c];
+      }
+    }
+  }
+
+  if (mode === 'horizontal' || mode === 'both') {
+    // Mirror top to bottom
+    for (let r = 0; r < Math.floor(rows / 2); r++) {
+      for (let c = 0; c < cols; c++) {
+        grid[rows - 1 - r][c] = grid[r][c];
+      }
+    }
+  }
+
+  // Find valid positions for the question mark (positions that have a mirror)
+  const validPositions = [];
+
+  if (mode === 'vertical') {
+    // Question can be in left or right half (not center column if odd)
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < Math.floor(cols / 2); c++) {
+        validPositions.push({ r, c, mirrorR: r, mirrorC: cols - 1 - c });
+      }
+      for (let c = Math.ceil(cols / 2); c < cols; c++) {
+        validPositions.push({ r, c, mirrorR: r, mirrorC: cols - 1 - c });
+      }
+    }
+  } else if (mode === 'horizontal') {
+    // Question can be in top or bottom half (not center row if odd)
+    for (let r = 0; r < Math.floor(rows / 2); r++) {
+      for (let c = 0; c < cols; c++) {
+        validPositions.push({ r, c, mirrorR: rows - 1 - r, mirrorC: c });
+      }
+    }
+    for (let r = Math.ceil(rows / 2); r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        validPositions.push({ r, c, mirrorR: rows - 1 - r, mirrorC: c });
+      }
+    }
+  } else {
+    // Both: question can be anywhere except center row/column axes
+    for (let r = 0; r < rows; r++) {
+      if (rows % 2 === 1 && r === Math.floor(rows / 2)) continue; // skip center row
+      for (let c = 0; c < cols; c++) {
+        if (cols % 2 === 1 && c === Math.floor(cols / 2)) continue; // skip center col
+        // Pick one mirror (vertical mirror for simplicity)
+        validPositions.push({ r, c, mirrorR: r, mirrorC: cols - 1 - c });
+      }
+    }
+  }
+
+  // Pick random position for question
+  const pos = validPositions[Math.floor(Math.random() * validPositions.length)];
+  const { r: questionRow, c: questionCol, mirrorR, mirrorC } = pos;
+
+  // Set answer digit in both mirror positions
+  grid[questionRow][questionCol] = answerDigit;
+  grid[mirrorR][mirrorC] = answerDigit;
+
+  return { grid, questionRow, questionCol, answerDigit, cols, rows };
+}
+
+function regenerateGrids() {
+  const codeStr = $('code').value || '1234';
+  const digits = codeStr.split('').map(Number);
+  const cols = +$('matrixW').value || 6;
+  const rows = +$('matrixH').value || 6;
+  const mode = $('patternMode').value;
+  grids = digits.map(d => generateGrid(d, cols, rows, mode));
+}
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  if (grids.length === 0) regenerateGrids();
+
+  const legendSizePct = +$('legendSize').value / 100;
+  const legendCircleR = H * legendSizePct / 2;
+  const legendHeight = legendCircleR * 4;
+  const legendY = legendCircleR * 1.5;
+
+  // Draw legend
+  const legendStartX = W * 0.05;
+  const legendEndX = W * 0.95;
+  const legendSpacing = (legendEndX - legendStartX) / 10;
+
+  ctx.font = `bold ${legendCircleR * 1.2}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i < 10; i++) {
+    const x = legendStartX + legendSpacing * i + legendSpacing / 2;
+
+    // Draw circle
+    ctx.beginPath();
+    ctx.arc(x, legendY, legendCircleR, 0, Math.PI * 2);
+    ctx.fillStyle = COLOR_HEX[i];
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Draw digit below
+    ctx.fillStyle = '#333';
+    ctx.fillText(i.toString(), x, legendY + legendCircleR * 1.8);
+  }
+
+  // Separator line
+  const separatorY = legendY + legendCircleR * 2.8;
+  ctx.beginPath();
+  ctx.moveTo(W * 0.02, separatorY);
+  ctx.lineTo(W * 0.98, separatorY);
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Draw grids
+  const numPanels = grids.length;
+  const panelSpacing = +$('panelSpacing').value;
+  const gridAreaTop = separatorY + 15;
+  const gridAreaHeight = H - gridAreaTop - 15;
+  const totalPanelWidth = W - 40;
+  const panelWidth = (totalPanelWidth - (numPanels - 1) * panelSpacing) / numPanels;
+  const cellSizePct = +$('cellSize').value / 100;
+  const borderWidth = +$('gridBorder').value;
+  const displayMode = $('displayMode').value;
+  const showAxis = $('showAxis').checked;
+  const axisStyle = $('axisStyle').value;
+  const patternMode = $('patternMode').value;
+
+  for (let p = 0; p < numPanels; p++) {
+    const { grid, questionRow, questionCol, answerDigit, cols, rows } = grids[p];
+    const panelX = 20 + p * (panelWidth + panelSpacing);
+    const panelCenterX = panelX + panelWidth / 2;
+
+    // Calculate cell size based on grid dimensions
+    const maxCellW = panelWidth * cellSizePct / cols * 3;
+    const maxCellH = gridAreaHeight * cellSizePct / rows * 3;
+    const cellSize = Math.min(maxCellW, maxCellH);
+    const gridWidth = cellSize * cols;
+    const gridHeight = cellSize * rows;
+
+    const gridLeft = panelCenterX - gridWidth / 2;
+    const gridTop = gridAreaTop + (gridAreaHeight - gridHeight) / 2;
+
+    // Draw axis lines behind grid
+    if (showAxis) {
+      ctx.save();
+
+      const drawAxisLine = (x1, y1, x2, y2, isVertical) => {
+        if (axisStyle === 'solid') {
+          ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([]);
+        } else if (axisStyle === 'dashed') {
+          ctx.strokeStyle = 'rgba(100, 100, 100, 0.4)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([8, 4]);
+        } else if (axisStyle === 'gradient') {
+          let grad;
+          if (isVertical) {
+            grad = ctx.createLinearGradient(x1 - 20, 0, x1 + 20, 0);
+          } else {
+            grad = ctx.createLinearGradient(0, y1 - 20, 0, y1 + 20);
+          }
+          grad.addColorStop(0, 'rgba(100, 100, 100, 0)');
+          grad.addColorStop(0.5, 'rgba(100, 100, 100, 0.3)');
+          grad.addColorStop(1, 'rgba(100, 100, 100, 0)');
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = 40;
+          ctx.setLineDash([]);
+        }
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      };
+
+      // Vertical axis (for vertical or both symmetry)
+      if (patternMode === 'vertical' || patternMode === 'both') {
+        const axisX = gridLeft + gridWidth / 2;
+        drawAxisLine(axisX, gridTop - 10, axisX, gridTop + gridHeight + 10, true);
+      }
+
+      // Horizontal axis (for horizontal or both symmetry)
+      if (patternMode === 'horizontal' || patternMode === 'both') {
+        const axisY = gridTop + gridHeight / 2;
+        drawAxisLine(gridLeft - 10, axisY, gridLeft + gridWidth + 10, axisY, false);
+      }
+
+      ctx.restore();
+    }
+
+    // Draw grid cells
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = gridLeft + col * cellSize;
+        const y = gridTop + row * cellSize;
+        const value = grid[row][col];
+        const isQuestion = row === questionRow && col === questionCol;
+
+        // Cell background
+        if (isQuestion) {
+          ctx.fillStyle = '#fff';
+        } else if (displayMode !== 'digit') {
+          ctx.fillStyle = COLOR_HEX[value];
+        } else {
+          ctx.fillStyle = '#f5f5f5';
+        }
+        ctx.fillRect(x, y, cellSize, cellSize);
+
+        // Cell border
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+
+        // Cell content
+        const centerX = x + cellSize / 2;
+        const centerY = y + cellSize / 2;
+        const fontSize = cellSize * 0.5;
+        ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        if (isQuestion) {
+          ctx.fillStyle = '#666';
+          ctx.fillText('?', centerX, centerY);
+        } else if (displayMode === 'both') {
+          // White digit on colored background
+          ctx.fillStyle = '#fff';
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1;
+          ctx.strokeText(value.toString(), centerX, centerY);
+          ctx.fillText(value.toString(), centerX, centerY);
+        } else if (displayMode === 'digit') {
+          ctx.fillStyle = '#333';
+          ctx.fillText(value.toString(), centerX, centerY);
+        }
+        // color-only mode: no text needed
+      }
+    }
+  }
+}
+
+// Event handlers
+function randCode() {
+  const len = Math.min(5, Math.max(1, ($('code').value || '').length || 4));
+  const max = Math.pow(10, len);
+  $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
+  regenerateGrids();
+}
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => { if (b.dataset.t === 'code') { randCode(); draw(); } };
+});
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = DEF[k];
+    else el.value = DEF[k];
+  }
+  regenerateGrids();
+  draw();
+};
+
+$('newPattern').onclick = () => {
+  regenerateGrids();
+  draw();
+};
+
+$('code').oninput = () => { regenerateGrids(); draw(); };
+$('matrixW').onchange = () => { regenerateGrids(); draw(); };
+$('matrixH').onchange = () => { regenerateGrids(); draw(); };
+$('patternMode').onchange = () => { regenerateGrids(); draw(); };
+
+document.querySelectorAll('input, select').forEach(el => {
+  if (!el.oninput) el.oninput = draw;
+  if (!el.onchange) el.onchange = draw;
+});
+
+// Download
+$('can').onclick = () => {
+  const c = $('code').value || '0000';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  draw();
+};
+
+// Initial
+regenerateGrids();
+draw();
+</script>
