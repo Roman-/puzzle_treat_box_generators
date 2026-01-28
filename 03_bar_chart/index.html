@@ -15,34 +15,26 @@
 <!-- === creativity === -->
 <label>Bar width (× scene&nbsp;W)
   <input id=barW type=range min=0.40 max=0.90 step=0.01 value=0.60>
-  <button type=button data-t="barW">🎲</button>
 </label><br>
 
 <label>Bar outline (× scene&nbsp;H)
   <input id=outline type=range min=0 max=0.05 step=0.001 value=0.01>
-  <button type=button data-t="outline">🎲</button>
 </label><br>
 
 <label>Bar 1 color <input id=bar1 type=color value="#ff4040">
-  <button type=button data-t="bar1">🎲</button>
 </label><br>
 <label>Bar 2 color <input id=bar2 type=color value="#4090ff">
-  <button type=button data-t="bar2">🎲</button>
 </label><br>
 <label>Bar 3 color <input id=bar3 type=color value="#00aa40">
-  <button type=button data-t="bar3">🎲</button>
 </label><br>
 <label>Bar 4 color <input id=bar4 type=color value="#ffd800">
-  <button type=button data-t="bar4">🎲</button>
 </label><br>
 
 <label>Grid line thickness (× H)
   <input id=lineT type=range min=0.001 max=0.02 step=0.001 value=0.005>
-  <button type=button data-t="lineT">🎲</button>
 </label><br>
 
 <label>Grid line color <input id=lineColor type=color value="#888888">
-  <button type=button data-t="lineColor">🎲</button>
 </label><br>
 
 <label><input id=dash type=checkbox> Dashed grid lines</label><br>
@@ -52,11 +44,9 @@
 
 <label>Label size (× H)
   <input id=font type=range min=0.02 max=0.08 step=0.01 value=0.04>
-  <button type=button data-t="font">🎲</button>
 </label><br>
 
-<button id=randAll type=button>🎲 Randomize all</button>
-<button id=reset   type=button>🔄 Restore defaults</button>
+<button id=reset type=button>🔄 Restore defaults</button>
 
 <hr>
 
@@ -134,22 +124,8 @@
   oninput = draw; draw();
 
   function randCode(){ $('code').value = (Math.random()*1e4|0).toString().padStart(4,'0'); }
-  function randBarW(){ $('barW').value = (0.4 + Math.random()*0.5).toFixed(2); }
-  function randOutline(){ $('outline').value = (Math.random()*0.05).toFixed(3); }
-  function randLineT(){ $('lineT').value = (Math.random()*0.019 + 0.001).toFixed(3); }
-  function randLineColor(){ $('lineColor').value = '#'+(Math.random()*0xffffff|0).toString(16).padStart(6,0); }
-  function randFont(){ $('font').value = (0.02 + Math.random()*0.06).toFixed(2); }
-  function randColor(id){ $(id).value = '#'+(Math.random()*0xffffff|0).toString(16).padStart(6,0); }
 
-  const randFns = {
-    code:randCode, barW:randBarW, outline:randOutline,
-    bar1:()=>randColor('bar1'), bar2:()=>randColor('bar2'),
-    bar3:()=>randColor('bar3'), bar4:()=>randColor('bar4'),
-    lineT:randLineT, lineColor:randLineColor, font:randFont
-  };
-  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { randFns[b.dataset.t](); draw(); });
-
-  $('randAll').onclick = () => { Object.values(randFns).forEach(f=>f()); draw(); };
+  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { if(b.dataset.t==='code'){ randCode(); draw(); } });
 
   $('reset').onclick = () => {
     for (const k in DEF){

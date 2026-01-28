@@ -15,12 +15,10 @@
 <!-- === creativity === -->
 <label>Repetitions
   <input id=reps type=range min=3 max=5 step=1 value=4>
-  <button type=button data-t="reps">🎲</button>
 </label><br>
 
 <label>Hidden position
   <input id=hiddenPos type=range min=1 max=3 step=1 value=2>
-  <button type=button data-t="hiddenPos">🎲</button>
 </label><br>
 
 <label>Car style
@@ -29,32 +27,26 @@
     <option value="rounded">Rounded</option>
     <option value="fancy">Fancy</option>
   </select>
-  <button type=button data-t="carStyle">🎲</button>
 </label><br>
 
 <label>Car size (% of height)
   <input id=carSize type=range min=30 max=70 step=5 value=50>
-  <button type=button data-t="carSize">🎲</button>
 </label><br>
 
 <label>Car spacing
   <input id=carSpacing type=range min=5 max=40 step=5 value=15>
-  <button type=button data-t="carSpacing">🎲</button>
 </label><br>
 
 <label>Car color
   <input id=carColor type=color value="#4a90d9">
-  <button type=button data-t="carColor">🎲</button>
 </label><br>
 
 <label>Wheel color
   <input id=wheelColor type=color value="#333333">
-  <button type=button data-t="wheelColor">🎲</button>
 </label><br>
 
 <label><input id=showArrow type=checkbox checked> Show direction arrow</label><br>
 
-<button id=randAll type=button>🎲 Randomize all</button>
 <button id=reset type=button>🔄 Restore defaults</button>
 
 <hr>
@@ -271,26 +263,6 @@ function randCode() {
   $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
 }
 
-function randReps() { $('reps').value = 3 + Math.floor(Math.random() * 3); updateHiddenPosMax(); }
-function randHiddenPos() {
-  const max = +$('reps').value - 1;
-  $('hiddenPos').value = 1 + Math.floor(Math.random() * (max - 1));
-}
-function randCarStyle() {
-  const styles = ['basic', 'rounded', 'fancy'];
-  $('carStyle').value = styles[Math.floor(Math.random() * styles.length)];
-}
-function randCarSize() { $('carSize').value = 30 + Math.floor(Math.random() * 40); }
-function randCarSpacing() { $('carSpacing').value = 5 + Math.floor(Math.random() * 35); }
-function randCarColor() {
-  const colors = ['#4a90d9', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e'];
-  $('carColor').value = colors[Math.floor(Math.random() * colors.length)];
-}
-function randWheelColor() {
-  const colors = ['#333333', '#555555', '#8B4513', '#2c3e50'];
-  $('wheelColor').value = colors[Math.floor(Math.random() * colors.length)];
-}
-
 function updateHiddenPosMax() {
   const max = +$('reps').value - 1;
   $('hiddenPos').max = max;
@@ -299,25 +271,9 @@ function updateHiddenPosMax() {
   }
 }
 
-const randFns = {
-  code: randCode,
-  reps: randReps,
-  hiddenPos: randHiddenPos,
-  carStyle: randCarStyle,
-  carSize: randCarSize,
-  carSpacing: randCarSpacing,
-  carColor: randCarColor,
-  wheelColor: randWheelColor
-};
-
 document.querySelectorAll('[data-t]').forEach(b => {
-  b.onclick = () => { randFns[b.dataset.t](); draw(); };
+  b.onclick = () => { if(b.dataset.t==='code'){ randCode(); draw(); } };
 });
-
-$('randAll').onclick = () => {
-  Object.values(randFns).forEach(f => f());
-  draw();
-};
 
 $('reset').onclick = () => {
   for (const k in DEF) {

@@ -15,20 +15,16 @@
 <!-- === settings === -->
 <label>Distractors per gap
   <input id=distractors type=range min=1 max=4 step=1 value=2>
-  <button type=button data-t="distractors">🎲</button>
 </label><br>
 
 <label>Shape size (% of height)
   <input id=shapeSize type=range min=30 max=70 step=1 value=50>
-  <button type=button data-t="shapeSize">🎲</button>
 </label><br>
 
 <label>Stroke thickness
   <input id=strokeWidth type=range min=1 max=8 step=0.5 value=3>
-  <button type=button data-t="strokeWidth">🎲</button>
 </label><br>
 
-<button id=randAll type=button>🎲 Randomize all</button>
 <button id=reset type=button>🔄 Restore defaults</button>
 
 <hr>
@@ -225,40 +221,11 @@ function randCode() {
   generateDisplaySequence();
 }
 
-function randDistractors() {
-  $('distractors').value = randomInt(1, 4);
-  generateDisplaySequence();
-}
-
-function randShapeSize() {
-  $('shapeSize').value = randomInt(30, 70);
-}
-
-function randStrokeWidth() {
-  $('strokeWidth').value = (1 + Math.random() * 7).toFixed(1);
-}
-
-const randFns = {
-  code: randCode,
-  distractors: randDistractors,
-  shapeSize: randShapeSize,
-  strokeWidth: randStrokeWidth
-};
-
 document.querySelectorAll('[data-t]').forEach(b => {
   b.onclick = () => {
-    randFns[b.dataset.t]();
-    draw();
+    if (b.dataset.t === 'code') { randCode(); draw(); }
   };
 });
-
-$('randAll').onclick = () => {
-  randCode();
-  randDistractors();
-  randShapeSize();
-  randStrokeWidth();
-  draw();
-};
 
 $('reset').onclick = () => {
   for (const k in DEF) {

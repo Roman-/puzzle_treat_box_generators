@@ -21,51 +21,41 @@
     <option value=3>Level 3 - Medium patterns</option>
     <option value=4>Level 4 - Complex patterns</option>
   </select>
-  <button type=button data-t="level">🎲</button>
 </label><br>
 
 <label>Circle radius (× scene W)
   <input id=radius type=range min=0.15 max=1.00 step=0.01 value=0.30>
-  <button type=button data-t="radius">🎲</button>
 </label><br>
 
 <label>Vertical overlap (× diameter)
   <input id=overlap type=range min=0.20 max=0.95 step=0.01 value=0.40>
-  <button type=button data-t="overlap">🎲</button>
 </label><br>
 
 <label>Circle outline (× radius)
   <input id=outline type=range min=0 max=0.15 step=0.01 value=0.05>
-  <button type=button data-t="outline">🎲</button>
 </label><br>
 
 <label>Outline color <input id=outlineColor type=color value="#333333">
-  <button type=button data-t="outlineColor">🎲</button>
 </label><br>
 
 <label>Legend circle size (× H)
   <input id=legendSize type=range min=0.03 max=0.08 step=0.005 value=0.05>
-  <button type=button data-t="legendSize">🎲</button>
 </label><br>
 
 <label>Min circles per column
   <input id=minCircles type=number min=3 max=30 value=13>
-  <button type=button data-t="minCircles">🎲</button>
 </label><br>
 
 <label>Variance (adds 0 to N circles)
   <input id=variance type=number min=0 max=10 value=0>
-  <button type=button data-t="variance">🎲</button>
 </label><br>
 
 <label>X jitter (× radius)
   <input id=jitter type=range min=0 max=1.5 step=0.05 value=0>
-  <button type=button data-t="jitter">🎲</button>
 </label><br>
 
 <label><input id=shuffleLegend type=checkbox> Shuffle legend order</label><br>
 
-<button id=randAll type=button>🎲 Randomize all</button>
 <button id=reset type=button>🔄 Restore defaults</button>
 <button id=newPattern type=button>🔀 New patterns (same code)</button>
 
@@ -321,35 +311,8 @@ function randCode() {
   $('code').value = (Math.random() * max | 0).toString().padStart(numDigits, '0');
   regeneratePatterns();
 }
-function randLevel() { $('level').value = (Math.random() * 5 | 0).toString(); regeneratePatterns(); }
-function randRadius() { $('radius').value = (0.15 + Math.random() * 0.85).toFixed(2); }
-function randOverlap() { $('overlap').value = (0.20 + Math.random() * 0.75).toFixed(2); }
-function randOutline() { $('outline').value = (Math.random() * 0.15).toFixed(2); }
-function randOutlineColor() { $('outlineColor').value = '#' + (Math.random() * 0x555555 | 0).toString(16).padStart(6, '0'); }
-function randLegendSize() { $('legendSize').value = (0.03 + Math.random() * 0.05).toFixed(3); }
-function randMinCircles() { $('minCircles').value = 5 + Math.floor(Math.random() * 20); regeneratePatterns(); }
-function randVariance() { $('variance').value = Math.floor(Math.random() * 8); regeneratePatterns(); }
-function randJitter() { $('jitter').value = (Math.random() * 1.5).toFixed(2); }
 
-const randFns = {
-  code: randCode,
-  level: randLevel,
-  radius: randRadius,
-  overlap: randOverlap,
-  outline: randOutline,
-  outlineColor: randOutlineColor,
-  legendSize: randLegendSize,
-  minCircles: randMinCircles,
-  variance: randVariance,
-  jitter: randJitter
-};
-
-document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { randFns[b.dataset.t](); draw(); });
-
-$('randAll').onclick = () => {
-  Object.values(randFns).forEach(f => f());
-  draw();
-};
+document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { if(b.dataset.t==='code'){ randCode(); draw(); } });
 
 $('reset').onclick = () => {
   for (const k in DEF) {

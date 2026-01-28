@@ -20,12 +20,10 @@
     <option value="skip2down">Skip 2 down (-2)</option>
     <option value="skip2up">Skip 2 up (+2)</option>
   </select>
-  <button type=button data-t="patternType">🎲</button>
 </label><br>
 
 <label>Steps shown
   <input id=steps type=range min=3 max=6 step=1 value=4>
-  <button type=button data-t="steps">🎲</button>
 </label><br>
 
 <label>Element style
@@ -34,25 +32,20 @@
     <option value="circle">Circles</option>
     <option value="square">Squares</option>
   </select>
-  <button type=button data-t="elemStyle">🎲</button>
 </label><br>
 
 <label>Element size (% of cell)
   <input id=elemSize type=range min=40 max=95 step=5 value=70>
-  <button type=button data-t="elemSize">🎲</button>
 </label><br>
 
 <label>Column spacing
   <input id=colSpacing type=range min=10 max=60 step=5 value=30>
-  <button type=button data-t="colSpacing">🎲</button>
 </label><br>
 
 <label>Row spacing
   <input id=rowSpacing type=range min=5 max=40 step=5 value=15>
-  <button type=button data-t="rowSpacing">🎲</button>
 </label><br>
 
-<button id=randAll type=button>🎲 Randomize all</button>
 <button id=reset type=button>🔄 Restore defaults</button>
 
 <hr>
@@ -205,37 +198,9 @@ function randCode() {
   $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
 }
 
-function randPatternType() {
-  const types = ['countdown', 'countup', 'skip2down', 'skip2up'];
-  $('patternType').value = types[Math.floor(Math.random() * types.length)];
-}
-function randSteps() { $('steps').value = 3 + Math.floor(Math.random() * 4); }
-function randElemStyle() {
-  const styles = ['plain', 'circle', 'square'];
-  $('elemStyle').value = styles[Math.floor(Math.random() * styles.length)];
-}
-function randElemSize() { $('elemSize').value = 40 + Math.floor(Math.random() * 56); }
-function randColSpacing() { $('colSpacing').value = 10 + Math.floor(Math.random() * 50); }
-function randRowSpacing() { $('rowSpacing').value = 5 + Math.floor(Math.random() * 35); }
-
-const randFns = {
-  code: randCode,
-  patternType: randPatternType,
-  steps: randSteps,
-  elemStyle: randElemStyle,
-  elemSize: randElemSize,
-  colSpacing: randColSpacing,
-  rowSpacing: randRowSpacing
-};
-
 document.querySelectorAll('[data-t]').forEach(b => {
-  b.onclick = () => { randFns[b.dataset.t](); draw(); };
+  b.onclick = () => { if(b.dataset.t==='code'){ randCode(); draw(); } };
 });
-
-$('randAll').onclick = () => {
-  Object.values(randFns).forEach(f => f());
-  draw();
-};
 
 $('reset').onclick = () => {
   for (const k in DEF) {

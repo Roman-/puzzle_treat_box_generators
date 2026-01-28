@@ -77,7 +77,7 @@
   <!-- === Puzzle Content === -->
   <div class="row">
     <label>Code (4-5 digits) <input id=code type=text value=1234 pattern="\d{4,5}" maxlength=5></label>
-    <button type=button data-t="code">🎲 Random Code</button>
+    <button type=button data-t="code">🎲</button>
   </div>
 
   <hr>
@@ -94,7 +94,6 @@
         <option value="Arial">Arial (Fallback)</option>
       </select>
     </label>
-    <button type=button data-t="font">🎲 Random Font</button>
   </div>
 
   <div class="row">
@@ -123,7 +122,6 @@
   <hr>
 
   <div class="row">
-    <button id=randAll type=button>🎲 Randomize All</button>
     <button id=reset type=button>🔄 Restore Defaults</button>
     <button id=downloadBtn type=button>💾 Download PNG</button>
   </div>
@@ -294,29 +292,11 @@
     $('code').value = s;
   }
 
-  function randFont() {
-    const opts = $('font').options;
-    $('font').selectedIndex = Math.floor(Math.random() * opts.length);
-  }
-
-  const randFns = {
-    code: randCode,
-    font: randFont
-  };
-
   document.querySelectorAll('[data-t]').forEach(b => {
     b.onclick = () => {
-      if (randFns[b.dataset.t]) randFns[b.dataset.t]();
-      draw();
+      if (b.dataset.t === 'code') { randCode(); draw(); }
     };
   });
-
-  $('randAll').onclick = () => {
-    randCode();
-    randFont();
-    $('color').value = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-    draw();
-  };
 
   $('reset').onclick = () => {
     for (const k in DEF) {

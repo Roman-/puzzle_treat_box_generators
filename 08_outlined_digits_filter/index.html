@@ -18,7 +18,6 @@
     <option value="color" selected>Color-based</option>
     <option value="math">Math-based</option>
   </select>
-  <button type=button data-t="ruleType">🎲</button>
 </label><br>
 
 <label>Current Rule: <strong id=currentRuleDisplay>—</strong></label>
@@ -29,21 +28,16 @@
 <!-- === visual settings === -->
 <label>Digit size (% of height)
   <input id=digitSize type=range min=30 max=80 step=1 value=50>
-  <button type=button data-t="digitSize">🎲</button>
 </label><br>
 
 <label>Outline thickness (% of digit)
   <input id=outlineThickness type=range min=3 max=20 step=1 value=8>
-  <button type=button data-t="outlineThickness">🎲</button>
 </label><br>
 
 <label>Total distractors
   <input id=distractors type=range min=2 max=12 step=1 value=6>
-  <button type=button data-t="distractors">🎲</button>
 </label><br>
 
-
-<button id=randAll type=button>🎲 Randomize all</button>
 <button id=reset type=button>🔄 Restore defaults</button>
 
 <hr>
@@ -309,50 +303,14 @@ function randCode() {
   regenerateCode();
 }
 
-function randRuleType() {
-  const types = ['color', 'math'];
-  $('ruleType').value = randomElement(types);
-  selectNewRule();
-}
-
-function randDigitSize() {
-  $('digitSize').value = 30 + Math.floor(Math.random() * 50);
-}
-
-function randOutlineThickness() {
-  $('outlineThickness').value = 3 + Math.floor(Math.random() * 17);
-}
-
-function randDistractors() {
-  $('distractors').value = 2 + Math.floor(Math.random() * 11);
-  generateDisplaySequence();
-}
-
-const randFns = {
-  code: randCode,
-  ruleType: randRuleType,
-  digitSize: randDigitSize,
-  outlineThickness: randOutlineThickness,
-  distractors: randDistractors
-};
-
 document.querySelectorAll('[data-t]').forEach(b => {
   b.onclick = () => {
-    randFns[b.dataset.t]();
-    draw();
+    if (b.dataset.t === 'code') { randCode(); draw(); }
   };
 });
 
 $('newRule').onclick = () => {
   selectNewRule();
-  draw();
-};
-
-$('randAll').onclick = () => {
-  randRuleType();
-  randDigitSize();
-  randOutlineThickness();
-  randDistractors();
   draw();
 };
 

@@ -15,12 +15,10 @@
 <!-- === creativity === -->
 <label>Repetitions
   <input id=reps type=range min=3 max=6 step=1 value=4>
-  <button type=button data-t="reps">🎲</button>
 </label><br>
 
 <label>Hidden position
   <input id=hiddenPos type=range min=1 max=4 step=1 value=2>
-  <button type=button data-t="hiddenPos">🎲</button>
 </label><br>
 
 <label>Group style
@@ -30,25 +28,20 @@
     <option value="bracket">Bracket</option>
     <option value="spacing">Spacing only</option>
   </select>
-  <button type=button data-t="groupStyle">🎲</button>
 </label><br>
 
 <label>Digit size (% of height)
   <input id=digitSize type=range min=20 max=60 step=1 value=40>
-  <button type=button data-t="digitSize">🎲</button>
 </label><br>
 
 <label>Group spacing
   <input id=groupSpacing type=range min=20 max=100 step=5 value=50>
-  <button type=button data-t="groupSpacing">🎲</button>
 </label><br>
 
 <label>Digit spacing
   <input id=digitSpacing type=range min=0 max=30 step=2 value=10>
-  <button type=button data-t="digitSpacing">🎲</button>
 </label><br>
 
-<button id=randAll type=button>🎲 Randomize all</button>
 <button id=reset type=button>🔄 Restore defaults</button>
 
 <hr>
@@ -160,19 +153,6 @@ function randCode() {
   $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
 }
 
-function randReps() { $('reps').value = 3 + Math.floor(Math.random() * 4); updateHiddenPosMax(); }
-function randHiddenPos() {
-  const max = +$('reps').value - 1;
-  $('hiddenPos').value = 1 + Math.floor(Math.random() * (max - 1));
-}
-function randGroupStyle() {
-  const styles = ['underline', 'box', 'bracket', 'spacing'];
-  $('groupStyle').value = styles[Math.floor(Math.random() * styles.length)];
-}
-function randDigitSize() { $('digitSize').value = 20 + Math.floor(Math.random() * 40); }
-function randGroupSpacing() { $('groupSpacing').value = 20 + Math.floor(Math.random() * 80); }
-function randDigitSpacing() { $('digitSpacing').value = Math.floor(Math.random() * 30); }
-
 function updateHiddenPosMax() {
   const max = +$('reps').value - 1;
   $('hiddenPos').max = max;
@@ -181,24 +161,9 @@ function updateHiddenPosMax() {
   }
 }
 
-const randFns = {
-  code: randCode,
-  reps: randReps,
-  hiddenPos: randHiddenPos,
-  groupStyle: randGroupStyle,
-  digitSize: randDigitSize,
-  groupSpacing: randGroupSpacing,
-  digitSpacing: randDigitSpacing
-};
-
 document.querySelectorAll('[data-t]').forEach(b => {
-  b.onclick = () => { randFns[b.dataset.t](); draw(); };
+  b.onclick = () => { if(b.dataset.t==='code'){ randCode(); draw(); } };
 });
-
-$('randAll').onclick = () => {
-  Object.values(randFns).forEach(f => f());
-  draw();
-};
 
 $('reset').onclick = () => {
   for (const k in DEF) {

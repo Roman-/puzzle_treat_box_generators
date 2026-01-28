@@ -15,17 +15,14 @@
 <!-- === creativity === -->
 <label>Grid size
   <input id=cells type=range min=3 max=10 step=1 value=4>
-  <button type=button data-t="cells">🎲</button>
 </label><br>
 
 <label>Circle size
   <input id=rad type=range min=0.10 max=0.45 step=0.01 value=0.35>
-  <button type=button data-t="rad">🎲</button>
 </label><br>
 
 <label>Line thickness
   <input id=thick type=range min=0.01 max=0.20 step=0.01 value=0.05>
-  <button type=button data-t="thick">🎲</button>
 </label><br>
 
 <!-- === hint block (always shown) === -->
@@ -36,8 +33,7 @@
   <input id=qmgap  type=range min=0.00 max=0.20 step=0.01 value=0.05>
 </label><br>
 
-<button id=randAll type=button>🎲 Randomize all</button>
-<button id=reset   type=button>🔄 Restore defaults</button>
+<button id=reset type=button>🔄 Restore defaults</button>
 
 <hr>
 
@@ -178,14 +174,8 @@
 
   /* ---------- random helpers ---------- */
   function randCode () { $('code').value = (Math.random()*1e4|0).toString().padStart(4,'0'); }
-  function randCells() { $('cells').value = 3 + (Math.random()*8|0); }
-  function randRad  () { $('rad').value   = (Math.random()*0.35 + 0.10).toFixed(2); }
-  function randThick() { $('thick').value = (Math.random()*0.19 + 0.01).toFixed(2); }
 
-  const randFns = { code:randCode, cells:randCells, rad:randRad, thick:randThick };
-  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { randFns[b.dataset.t](); draw(); });
-
-  $('randAll').onclick = () => { Object.values(randFns).forEach(f=>f()); draw(); };
+  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { if(b.dataset.t==='code'){ randCode(); draw(); } });
 
   $('reset').onclick   = () => {
     for (const k in DEF){
