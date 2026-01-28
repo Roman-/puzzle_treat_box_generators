@@ -1,0 +1,355 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Sequence Pattern (Train) – generator</title>
+
+<!-- === size === -->
+<label>W <input id=w type=number value=900 min=100></label>
+<label>H <input id=h type=number value=250 min=100></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Repetitions
+  <input id=reps type=range min=3 max=5 step=1 value=4>
+  <button type=button data-t="reps">🎲</button>
+</label><br>
+
+<label>Hidden position
+  <input id=hiddenPos type=range min=1 max=3 step=1 value=2>
+  <button type=button data-t="hiddenPos">🎲</button>
+</label><br>
+
+<label>Car style
+  <select id=carStyle>
+    <option value="basic" selected>Basic</option>
+    <option value="rounded">Rounded</option>
+    <option value="fancy">Fancy</option>
+  </select>
+  <button type=button data-t="carStyle">🎲</button>
+</label><br>
+
+<label>Car size (% of height)
+  <input id=carSize type=range min=30 max=70 step=5 value=50>
+  <button type=button data-t="carSize">🎲</button>
+</label><br>
+
+<label>Car spacing
+  <input id=carSpacing type=range min=5 max=40 step=5 value=15>
+  <button type=button data-t="carSpacing">🎲</button>
+</label><br>
+
+<label>Car color
+  <input id=carColor type=color value="#4a90d9">
+  <button type=button data-t="carColor">🎲</button>
+</label><br>
+
+<label>Wheel color
+  <input id=wheelColor type=color value="#333333">
+  <button type=button data-t="wheelColor">🎲</button>
+</label><br>
+
+<label><input id=showArrow type=checkbox checked> Show direction arrow</label><br>
+
+<button id=randAll type=button>🎲 Randomize all</button>
+<button id=reset type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'sequence_pattern_train';
+
+const DEF = {
+  w: 900, h: 250, code: '1234',
+  reps: 4, hiddenPos: 2, carStyle: 'basic',
+  carSize: 50, carSpacing: 15,
+  carColor: '#4a90d9', wheelColor: '#333333',
+  showArrow: true
+};
+
+function drawCar(x, y, w, h, style, color, digit, isHidden) {
+  const radius = style === 'rounded' ? h * 0.2 : (style === 'fancy' ? h * 0.15 : 0);
+
+  // Car body
+  ctx.fillStyle = isHidden ? '#e0e0e0' : color;
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+
+  if (radius > 0) {
+    // Rounded rectangle
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+  }
+
+  // Fancy style: add window
+  if (style === 'fancy') {
+    const winMargin = h * 0.15;
+    const winH = h * 0.3;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x + winMargin, y + winMargin, w - winMargin * 2, winH);
+    ctx.strokeRect(x + winMargin, y + winMargin, w - winMargin * 2, winH);
+  }
+
+  // Digit
+  const fontSize = h * 0.5;
+  ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = isHidden ? '#666' : '#fff';
+
+  // Add text shadow for readability
+  if (!isHidden) {
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 2;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+  }
+
+  const textY = style === 'fancy' ? y + h * 0.6 : y + h / 2;
+  ctx.fillText(isHidden ? '?' : digit, x + w / 2, textY);
+
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+}
+
+function drawWheels(x, y, carW, carH, wheelColor) {
+  const wheelR = carH * 0.15;
+  const wheelY = y + carH + wheelR * 0.3;
+  const wheelInset = carW * 0.2;
+
+  ctx.fillStyle = wheelColor;
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 2;
+
+  // Left wheel
+  ctx.beginPath();
+  ctx.arc(x + wheelInset, wheelY, wheelR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Right wheel
+  ctx.beginPath();
+  ctx.arc(x + carW - wheelInset, wheelY, wheelR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Wheel centers
+  ctx.fillStyle = '#888';
+  ctx.beginPath();
+  ctx.arc(x + wheelInset, wheelY, wheelR * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + carW - wheelInset, wheelY, wheelR * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawConnector(x1, x2, y, carH) {
+  const connY = y + carH * 0.5;
+  const connH = carH * 0.1;
+
+  ctx.fillStyle = '#555';
+  ctx.fillRect(x1, connY - connH / 2, x2 - x1, connH);
+}
+
+function drawArrow(x, y, size) {
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x - size, y - size / 2);
+  ctx.lineTo(x - size, y + size / 2);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  const code = $('code').value || '1234';
+  const reps = +$('reps').value;
+  const hiddenPos = Math.min(+$('hiddenPos').value, reps - 1);
+  const carStyle = $('carStyle').value;
+  const carSizePct = +$('carSize').value / 100;
+  const carSpacing = +$('carSpacing').value;
+  const carColor = $('carColor').value;
+  const wheelColor = $('wheelColor').value;
+  const showArrow = $('showArrow').checked;
+
+  const totalCars = code.length * reps;
+  const carH = H * carSizePct;
+  const carW = carH * 0.8;
+  const wheelR = carH * 0.15;
+
+  // Calculate total train width
+  const trainW = totalCars * carW + (totalCars - 1) * carSpacing + (showArrow ? 40 : 0);
+
+  // Center the train
+  const startX = (W - trainW) / 2;
+  const carY = (H - carH - wheelR) / 2;
+
+  // Build sequence
+  const sequence = [];
+  for (let rep = 0; rep < reps; rep++) {
+    const isHidden = (rep === hiddenPos);
+    for (let i = 0; i < code.length; i++) {
+      sequence.push({ digit: code[i], isHidden });
+    }
+  }
+
+  // Draw connectors first (behind cars)
+  for (let i = 0; i < sequence.length - 1; i++) {
+    const x1 = startX + i * (carW + carSpacing) + carW;
+    const x2 = x1 + carSpacing;
+    drawConnector(x1, x2, carY, carH);
+  }
+
+  // Draw cars and wheels
+  for (let i = 0; i < sequence.length; i++) {
+    const x = startX + i * (carW + carSpacing);
+    const { digit, isHidden } = sequence[i];
+
+    drawCar(x, carY, carW, carH, carStyle, carColor, digit, isHidden);
+    drawWheels(x, carY, carW, carH, wheelColor);
+  }
+
+  // Draw direction arrow
+  if (showArrow) {
+    const arrowX = startX + sequence.length * (carW + carSpacing) + 20;
+    const arrowY = carY + carH / 2;
+    drawArrow(arrowX, arrowY, 20);
+  }
+
+  // Draw track
+  const trackY = carY + carH + wheelR * 1.5;
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(startX - 20, trackY);
+  ctx.lineTo(startX + trainW + 20, trackY);
+  ctx.stroke();
+
+  // Track ties
+  ctx.lineWidth = 2;
+  for (let x = startX - 10; x < startX + trainW + 20; x += 30) {
+    ctx.beginPath();
+    ctx.moveTo(x, trackY - 5);
+    ctx.lineTo(x, trackY + 5);
+    ctx.stroke();
+  }
+}
+
+// Event handlers
+function randCode() {
+  const len = Math.min(5, Math.max(1, ($('code').value || '').length || 4));
+  const max = Math.pow(10, len);
+  $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
+}
+
+function randReps() { $('reps').value = 3 + Math.floor(Math.random() * 3); updateHiddenPosMax(); }
+function randHiddenPos() {
+  const max = +$('reps').value - 1;
+  $('hiddenPos').value = 1 + Math.floor(Math.random() * (max - 1));
+}
+function randCarStyle() {
+  const styles = ['basic', 'rounded', 'fancy'];
+  $('carStyle').value = styles[Math.floor(Math.random() * styles.length)];
+}
+function randCarSize() { $('carSize').value = 30 + Math.floor(Math.random() * 40); }
+function randCarSpacing() { $('carSpacing').value = 5 + Math.floor(Math.random() * 35); }
+function randCarColor() {
+  const colors = ['#4a90d9', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e'];
+  $('carColor').value = colors[Math.floor(Math.random() * colors.length)];
+}
+function randWheelColor() {
+  const colors = ['#333333', '#555555', '#8B4513', '#2c3e50'];
+  $('wheelColor').value = colors[Math.floor(Math.random() * colors.length)];
+}
+
+function updateHiddenPosMax() {
+  const max = +$('reps').value - 1;
+  $('hiddenPos').max = max;
+  if (+$('hiddenPos').value > max) {
+    $('hiddenPos').value = max;
+  }
+}
+
+const randFns = {
+  code: randCode,
+  reps: randReps,
+  hiddenPos: randHiddenPos,
+  carStyle: randCarStyle,
+  carSize: randCarSize,
+  carSpacing: randCarSpacing,
+  carColor: randCarColor,
+  wheelColor: randWheelColor
+};
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => { randFns[b.dataset.t](); draw(); };
+});
+
+$('randAll').onclick = () => {
+  Object.values(randFns).forEach(f => f());
+  draw();
+};
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = DEF[k];
+    else el.value = DEF[k];
+  }
+  updateHiddenPosMax();
+  draw();
+};
+
+$('reps').oninput = () => { updateHiddenPosMax(); draw(); };
+$('showArrow').onchange = draw;
+
+document.querySelectorAll('input, select').forEach(el => {
+  if (!el.oninput && el.type !== 'checkbox') el.oninput = draw;
+  if (!el.onchange) el.onchange = draw;
+});
+
+// Download
+$('can').onclick = () => {
+  const c = $('code').value || '0000';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  draw();
+};
+
+// Initial
+updateHiddenPosMax();
+draw();
+</script>

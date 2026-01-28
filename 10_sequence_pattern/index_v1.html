@@ -1,0 +1,234 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Sequence Pattern (Grouped) – generator</title>
+
+<!-- === size === -->
+<label>W <input id=w type=number value=800 min=100></label>
+<label>H <input id=h type=number value=250 min=100></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Repetitions
+  <input id=reps type=range min=3 max=6 step=1 value=4>
+  <button type=button data-t="reps">🎲</button>
+</label><br>
+
+<label>Hidden position
+  <input id=hiddenPos type=range min=1 max=4 step=1 value=2>
+  <button type=button data-t="hiddenPos">🎲</button>
+</label><br>
+
+<label>Group style
+  <select id=groupStyle>
+    <option value="underline" selected>Underline</option>
+    <option value="box">Box</option>
+    <option value="bracket">Bracket</option>
+    <option value="spacing">Spacing only</option>
+  </select>
+  <button type=button data-t="groupStyle">🎲</button>
+</label><br>
+
+<label>Digit size (% of height)
+  <input id=digitSize type=range min=20 max=60 step=1 value=40>
+  <button type=button data-t="digitSize">🎲</button>
+</label><br>
+
+<label>Group spacing
+  <input id=groupSpacing type=range min=20 max=100 step=5 value=50>
+  <button type=button data-t="groupSpacing">🎲</button>
+</label><br>
+
+<label>Digit spacing
+  <input id=digitSpacing type=range min=0 max=30 step=2 value=10>
+  <button type=button data-t="digitSpacing">🎲</button>
+</label><br>
+
+<button id=randAll type=button>🎲 Randomize all</button>
+<button id=reset type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'sequence_pattern_grouped';
+
+const DEF = {
+  w: 800, h: 250, code: '1234',
+  reps: 4, hiddenPos: 2, groupStyle: 'underline',
+  digitSize: 40, groupSpacing: 50, digitSpacing: 10
+};
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  const code = $('code').value || '1234';
+  const reps = +$('reps').value;
+  const hiddenPos = Math.min(+$('hiddenPos').value, reps - 1);
+  const groupStyle = $('groupStyle').value;
+  const digitSizePct = +$('digitSize').value / 100;
+  const groupSpacing = +$('groupSpacing').value;
+  const digitSpacing = +$('digitSpacing').value;
+
+  const digitHeight = H * digitSizePct;
+  ctx.font = `bold ${digitHeight}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Calculate dimensions for a single group
+  const digitWidths = code.split('').map(d => ctx.measureText(d).width);
+  const groupWidth = digitWidths.reduce((a, b) => a + b, 0) + (code.length - 1) * digitSpacing;
+  const totalWidth = reps * groupWidth + (reps - 1) * groupSpacing;
+
+  // Center horizontally
+  const startX = (W - totalWidth) / 2;
+  const centerY = H / 2;
+
+  // Draw each repetition
+  for (let rep = 0; rep < reps; rep++) {
+    const isHidden = (rep === hiddenPos);
+    const groupX = startX + rep * (groupWidth + groupSpacing);
+
+    // Draw group indicator
+    if (groupStyle !== 'spacing') {
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+
+      const padding = 10;
+      const boxTop = centerY - digitHeight / 2 - padding;
+      const boxBottom = centerY + digitHeight / 2 + padding;
+      const boxLeft = groupX - padding;
+      const boxRight = groupX + groupWidth + padding;
+
+      if (groupStyle === 'underline') {
+        ctx.beginPath();
+        ctx.moveTo(boxLeft, boxBottom);
+        ctx.lineTo(boxRight, boxBottom);
+        ctx.stroke();
+      } else if (groupStyle === 'box') {
+        ctx.strokeRect(boxLeft, boxTop, boxRight - boxLeft, boxBottom - boxTop);
+      } else if (groupStyle === 'bracket') {
+        const bracketSize = 10;
+        ctx.beginPath();
+        // Left bracket
+        ctx.moveTo(boxLeft + bracketSize, boxTop);
+        ctx.lineTo(boxLeft, boxTop);
+        ctx.lineTo(boxLeft, boxBottom);
+        ctx.lineTo(boxLeft + bracketSize, boxBottom);
+        // Right bracket
+        ctx.moveTo(boxRight - bracketSize, boxTop);
+        ctx.lineTo(boxRight, boxTop);
+        ctx.lineTo(boxRight, boxBottom);
+        ctx.lineTo(boxRight - bracketSize, boxBottom);
+        ctx.stroke();
+      }
+    }
+
+    // Draw digits
+    let x = groupX;
+    for (let i = 0; i < code.length; i++) {
+      const digit = code[i];
+      const dw = digitWidths[i];
+
+      ctx.fillStyle = '#333';
+      if (isHidden) {
+        ctx.fillText('?', x + dw / 2, centerY);
+      } else {
+        ctx.fillText(digit, x + dw / 2, centerY);
+      }
+
+      x += dw + digitSpacing;
+    }
+  }
+}
+
+// Event handlers
+function randCode() {
+  const len = Math.min(5, Math.max(1, ($('code').value || '').length || 4));
+  const max = Math.pow(10, len);
+  $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
+}
+
+function randReps() { $('reps').value = 3 + Math.floor(Math.random() * 4); updateHiddenPosMax(); }
+function randHiddenPos() {
+  const max = +$('reps').value - 1;
+  $('hiddenPos').value = 1 + Math.floor(Math.random() * (max - 1));
+}
+function randGroupStyle() {
+  const styles = ['underline', 'box', 'bracket', 'spacing'];
+  $('groupStyle').value = styles[Math.floor(Math.random() * styles.length)];
+}
+function randDigitSize() { $('digitSize').value = 20 + Math.floor(Math.random() * 40); }
+function randGroupSpacing() { $('groupSpacing').value = 20 + Math.floor(Math.random() * 80); }
+function randDigitSpacing() { $('digitSpacing').value = Math.floor(Math.random() * 30); }
+
+function updateHiddenPosMax() {
+  const max = +$('reps').value - 1;
+  $('hiddenPos').max = max;
+  if (+$('hiddenPos').value > max) {
+    $('hiddenPos').value = max;
+  }
+}
+
+const randFns = {
+  code: randCode,
+  reps: randReps,
+  hiddenPos: randHiddenPos,
+  groupStyle: randGroupStyle,
+  digitSize: randDigitSize,
+  groupSpacing: randGroupSpacing,
+  digitSpacing: randDigitSpacing
+};
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => { randFns[b.dataset.t](); draw(); };
+});
+
+$('randAll').onclick = () => {
+  Object.values(randFns).forEach(f => f());
+  draw();
+};
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    el.value = DEF[k];
+  }
+  updateHiddenPosMax();
+  draw();
+};
+
+$('reps').oninput = () => { updateHiddenPosMax(); draw(); };
+
+document.querySelectorAll('input, select').forEach(el => {
+  if (!el.oninput) el.oninput = draw;
+  if (!el.onchange) el.onchange = draw;
+});
+
+// Download
+$('can').onclick = () => {
+  const c = $('code').value || '0000';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  draw();
+};
+
+// Initial
+updateHiddenPosMax();
+draw();
+</script>
