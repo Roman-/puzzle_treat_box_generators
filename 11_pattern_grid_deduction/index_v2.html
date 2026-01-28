@@ -3,8 +3,8 @@
 <title>Pattern Grid Deduction (Row/Column Match) – generator</title>
 
 <!-- === size === -->
-<label>W <input id=w type=number value=800 min=100></label>
-<label>H <input id=h type=number value=400 min=100></label>
+<label>W <input id=w type=number value=900 min=100></label>
+<label>H <input id=h type=number value=300 min=100></label>
 
 <!-- === 4-digit code + 🎲 === -->
 <label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
@@ -19,27 +19,22 @@
 
 <label>Pattern mode
   <select id=patternMode>
-    <option value="row" selected>Rows match (horizontal stripes)</option>
+    <option value="row">Rows match (horizontal stripes)</option>
     <option value="column">Columns match (vertical stripes)</option>
-    <option value="random">Random per panel</option>
+    <option value="random" selected>Random per panel</option>
   </select>
 </label><br>
 
 <label>Display mode
   <select id=displayMode>
-    <option value="both" selected>Color + Digit</option>
-    <option value="color">Color only</option>
+    <option value="both">Color + Digit</option>
+    <option value="color" selected>Color only</option>
     <option value="digit">Digit only</option>
   </select>
 </label><br>
 
-<label>Grid size
-  <select id=gridSize>
-    <option value="2x3">2×3</option>
-    <option value="3x3" selected>3×3</option>
-    <option value="3x4">3×4</option>
-  </select>
-</label><br>
+<label>Grid rows <input id=gridRows type=number value=3 min=2 max=8 style="width:50px"></label>
+<label>Grid cols <input id=gridCols type=number value=3 min=2 max=8 style="width:50px"></label><br>
 
 <label>Panel spacing
   <input id=panelSpacing type=range min=10 max=60 step=2 value=30>
@@ -67,8 +62,8 @@ const ctx = $('can').getContext('2d');
 const NAME = 'pattern_grid_stripes';
 
 const DEF = {
-  w: 800, h: 400, code: '1234',
-  cellSize: 25, patternMode: 'row', displayMode: 'both',
+  w: 900, h: 300, code: '1234',
+  cellSize: 25, patternMode: 'row', displayMode: 'color',
   gridSize: '3x3', panelSpacing: 30, gridBorder: 2,
   legendSize: 5
 };
@@ -148,49 +143,54 @@ function draw() {
 
   if (grids.length === 0) regenerateGrids();
 
+  const displayMode = $('displayMode').value;
+  const showLegend = displayMode === 'color';
+
   const legendSizePct = +$('legendSize').value / 100;
-  const legendCircleR = H * legendSizePct / 2;
-  const legendHeight = legendCircleR * 4;
-  const legendY = legendCircleR * 1.5;
+  const legendSquareSize = H * legendSizePct;
+  const legendY = showLegend ? legendSquareSize * 0.75 : 0;
+  let separatorY = 0;
 
-  // Draw legend
-  const legendStartX = W * 0.05;
-  const legendEndX = W * 0.95;
-  const legendSpacing = (legendEndX - legendStartX) / 10;
+  if (showLegend) {
+    // Draw legend
+    const legendStartX = W * 0.05;
+    const legendEndX = W * 0.95;
+    const legendSpacing = (legendEndX - legendStartX) / 10;
 
-  ctx.font = `bold ${legendCircleR * 1.2}px system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+    ctx.font = `bold ${legendSquareSize * 0.6}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
-  for (let i = 0; i < 10; i++) {
-    const x = legendStartX + legendSpacing * i + legendSpacing / 2;
+    for (let i = 0; i < 10; i++) {
+      const x = legendStartX + legendSpacing * i + legendSpacing / 2;
 
+      // Draw square
+      ctx.fillStyle = COLOR_HEX[i];
+      ctx.fillRect(x - legendSquareSize / 2, legendY - legendSquareSize / 2, legendSquareSize, legendSquareSize);
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - legendSquareSize / 2, legendY - legendSquareSize / 2, legendSquareSize, legendSquareSize);
+
+      // Draw digit below
+      ctx.fillStyle = '#333';
+      ctx.fillText(i.toString(), x, legendY + legendSquareSize / 2 + legendSquareSize * 0.4);
+    }
+
+    // Separator line
+    separatorY = legendY + legendSquareSize / 2 + legendSquareSize * 0.9;
     ctx.beginPath();
-    ctx.arc(x, legendY, legendCircleR, 0, Math.PI * 2);
-    ctx.fillStyle = COLOR_HEX[i];
-    ctx.fill();
-    ctx.strokeStyle = '#333';
+    ctx.moveTo(W * 0.02, separatorY);
+    ctx.lineTo(W * 0.98, separatorY);
+    ctx.strokeStyle = '#ddd';
     ctx.lineWidth = 1;
     ctx.stroke();
-
-    ctx.fillStyle = '#333';
-    ctx.fillText(i.toString(), x, legendY + legendCircleR * 1.8);
   }
-
-  // Separator line
-  const separatorY = legendY + legendCircleR * 2.8;
-  ctx.beginPath();
-  ctx.moveTo(W * 0.02, separatorY);
-  ctx.lineTo(W * 0.98, separatorY);
-  ctx.strokeStyle = '#ddd';
-  ctx.lineWidth = 1;
-  ctx.stroke();
 
   // Draw grids
   const { rows, cols } = parseGridSize();
   const numPanels = grids.length;
   const panelSpacing = +$('panelSpacing').value;
-  const gridAreaTop = separatorY + 15;
+  const gridAreaTop = showLegend ? separatorY + 15 : 15;
   const gridAreaHeight = H - gridAreaTop - 15;
   const totalPanelWidth = W - 40;
   const panelWidth = (totalPanelWidth - (numPanels - 1) * panelSpacing) / numPanels;
@@ -202,7 +202,6 @@ function draw() {
   const cellSize = Math.min(maxCellW, maxCellH);
 
   const borderWidth = +$('gridBorder').value;
-  const displayMode = $('displayMode').value;
 
   for (let p = 0; p < numPanels; p++) {
     const { grid, questionRow, questionCol, answerDigit, mode } = grids[p];
