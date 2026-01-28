@@ -39,7 +39,10 @@
   </select>
 </label><br>
 
-<label><input id=showAxis type=checkbox checked> Show symmetry axis</label><br>
+<label><input id=showAxis type=checkbox checked> Show symmetry axis</label>
+<label>Axis length
+  <input id=axisLength type=range min=10 max=100 step=5 value=40>
+</label><br>
 
 <label>Axis style
   <select id=axisStyle>
@@ -78,7 +81,7 @@ const DEF = {
   w: 800, h: 400, code: '1234',
   matrixW: 6, matrixH: 6, patternMode: 'vertical',
   cellSize: 25, displayMode: 'both', showAxis: true,
-  axisStyle: 'solid', panelSpacing: 30, gridBorder: 2,
+  axisLength: 40, axisStyle: 'solid', panelSpacing: 30, gridBorder: 2,
   legendSize: 5
 };
 
@@ -189,6 +192,7 @@ function draw() {
   const legendStartX = W * 0.05;
   const legendEndX = W * 0.95;
   const legendSpacing = (legendEndX - legendStartX) / 10;
+  const legendSquareSize = legendCircleR * 2;
 
   ctx.font = `bold ${legendCircleR * 1.2}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
@@ -197,18 +201,16 @@ function draw() {
   for (let i = 0; i < 10; i++) {
     const x = legendStartX + legendSpacing * i + legendSpacing / 2;
 
-    // Draw circle
-    ctx.beginPath();
-    ctx.arc(x, legendY, legendCircleR, 0, Math.PI * 2);
+    // Draw square
     ctx.fillStyle = COLOR_HEX[i];
-    ctx.fill();
+    ctx.fillRect(x - legendSquareSize / 2, legendY - legendSquareSize / 2, legendSquareSize, legendSquareSize);
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 1;
-    ctx.stroke();
+    ctx.strokeRect(x - legendSquareSize / 2, legendY - legendSquareSize / 2, legendSquareSize, legendSquareSize);
 
     // Draw digit below
     ctx.fillStyle = '#333';
-    ctx.fillText(i.toString(), x, legendY + legendCircleR * 1.8);
+    ctx.fillText(i.toString(), x, legendY + legendSquareSize / 2 + legendCircleR * 0.8);
   }
 
   // Separator line
@@ -252,6 +254,7 @@ function draw() {
     // Draw axis lines behind grid
     if (showAxis) {
       ctx.save();
+      const axisExt = +$('axisLength').value;
 
       const drawAxisLine = (x1, y1, x2, y2, isVertical) => {
         if (axisStyle === 'solid') {
@@ -285,13 +288,13 @@ function draw() {
       // Vertical axis (for vertical or both symmetry)
       if (patternMode === 'vertical' || patternMode === 'both') {
         const axisX = gridLeft + gridWidth / 2;
-        drawAxisLine(axisX, gridTop - 10, axisX, gridTop + gridHeight + 10, true);
+        drawAxisLine(axisX, gridTop - axisExt, axisX, gridTop + gridHeight + axisExt, true);
       }
 
       // Horizontal axis (for horizontal or both symmetry)
       if (patternMode === 'horizontal' || patternMode === 'both') {
         const axisY = gridTop + gridHeight / 2;
-        drawAxisLine(gridLeft - 10, axisY, gridLeft + gridWidth + 10, axisY, false);
+        drawAxisLine(gridLeft - axisExt, axisY, gridLeft + gridWidth + axisExt, axisY, false);
       }
 
       ctx.restore();
