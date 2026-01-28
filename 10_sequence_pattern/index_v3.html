@@ -3,8 +3,8 @@
 <title>Sequence Pattern (Train) – generator</title>
 
 <!-- === size === -->
-<label>W <input id=w type=number value=900 min=100></label>
-<label>H <input id=h type=number value=250 min=100></label>
+<label>W <input id=w type=number value=1000 min=100></label>
+<label>H <input id=h type=number value=200 min=100></label>
 
 <!-- === 4-digit code + 🎲 === -->
 <label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
@@ -13,12 +13,12 @@
 <hr>
 
 <!-- === creativity === -->
-<label>Repetitions
-  <input id=reps type=range min=3 max=5 step=1 value=4>
+<label>Visible cards before
+  <input id=cardsBefore type=range min=1 max=12 step=1 value=3>
 </label><br>
 
-<label>Hidden position
-  <input id=hiddenPos type=range min=1 max=3 step=1 value=2>
+<label>Visible cards after
+  <input id=cardsAfter type=range min=1 max=12 step=1 value=2>
 </label><br>
 
 <label>Car style
@@ -30,11 +30,11 @@
 </label><br>
 
 <label>Car size (% of height)
-  <input id=carSize type=range min=30 max=70 step=5 value=50>
+  <input id=carSize type=range min=30 max=70 step=5 value=45>
 </label><br>
 
 <label>Car spacing
-  <input id=carSpacing type=range min=5 max=40 step=5 value=15>
+  <input id=carSpacing type=range min=5 max=40 step=5 value=10>
 </label><br>
 
 <label>Car color
@@ -59,9 +59,9 @@ const ctx = $('can').getContext('2d');
 const NAME = 'sequence_pattern_train';
 
 const DEF = {
-  w: 900, h: 250, code: '1234',
-  reps: 4, hiddenPos: 2, carStyle: 'basic',
-  carSize: 50, carSpacing: 15,
+  w: 1000, h: 200, code: '1234',
+  cardsBefore: 3, cardsAfter: 2,
+  carStyle: 'basic', carSize: 45, carSpacing: 10,
   carColor: '#4a90d9', wheelColor: '#333333',
   showArrow: true
 };
@@ -184,8 +184,8 @@ function draw() {
   ctx.fillRect(0, 0, W, H);
 
   const code = $('code').value || '1234';
-  const reps = +$('reps').value;
-  const hiddenPos = Math.min(+$('hiddenPos').value, reps - 1);
+  const cardsBefore = +$('cardsBefore').value;
+  const cardsAfter = +$('cardsAfter').value;
   const carStyle = $('carStyle').value;
   const carSizePct = +$('carSize').value / 100;
   const carSpacing = +$('carSpacing').value;
@@ -193,7 +193,10 @@ function draw() {
   const wheelColor = $('wheelColor').value;
   const showArrow = $('showArrow').checked;
 
-  const totalCars = code.length * reps;
+  const codeLen = code.length;
+  // Total cars = visible before + hidden (codeLen) + visible after
+  const totalCars = cardsBefore + codeLen + cardsAfter;
+
   const carH = H * carSizePct;
   const carW = carH * 0.8;
   const wheelR = carH * 0.15;
@@ -205,13 +208,22 @@ function draw() {
   const startX = (W - trainW) / 2;
   const carY = (H - carH - wheelR) / 2;
 
-  // Build sequence
+  // Calculate offset to ensure hidden section aligns with the code
+  // The hidden section starts at position cardsBefore
+  // We need code[(cardsBefore + offset) % codeLen] = code[0]
+  // So (cardsBefore + offset) % codeLen = 0
+  // Therefore offset = (codeLen - (cardsBefore % codeLen)) % codeLen
+  const offset = (codeLen - (cardsBefore % codeLen)) % codeLen;
+
+  // Build sequence with calculated offset
+  // The hidden section will contain exactly the code digits in order
   const sequence = [];
-  for (let rep = 0; rep < reps; rep++) {
-    const isHidden = (rep === hiddenPos);
-    for (let i = 0; i < code.length; i++) {
-      sequence.push({ digit: code[i], isHidden });
-    }
+  for (let i = 0; i < totalCars; i++) {
+    // Is this car in the hidden section? (positions cardsBefore to cardsBefore + codeLen - 1)
+    const isHidden = (i >= cardsBefore && i < cardsBefore + codeLen);
+    // Get the digit with offset applied - ensures hidden section = code
+    const digitIndex = (i + offset) % codeLen;
+    sequence.push({ digit: code[digitIndex], isHidden });
   }
 
   // Draw connectors first (behind cars)
@@ -263,14 +275,6 @@ function randCode() {
   $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
 }
 
-function updateHiddenPosMax() {
-  const max = +$('reps').value - 1;
-  $('hiddenPos').max = max;
-  if (+$('hiddenPos').value > max) {
-    $('hiddenPos').value = max;
-  }
-}
-
 document.querySelectorAll('[data-t]').forEach(b => {
   b.onclick = () => { if(b.dataset.t==='code'){ randCode(); draw(); } };
 });
@@ -282,11 +286,9 @@ $('reset').onclick = () => {
     if (el.type === 'checkbox') el.checked = DEF[k];
     else el.value = DEF[k];
   }
-  updateHiddenPosMax();
   draw();
 };
 
-$('reps').oninput = () => { updateHiddenPosMax(); draw(); };
 $('showArrow').onchange = draw;
 
 document.querySelectorAll('input, select').forEach(el => {
@@ -306,6 +308,5 @@ $('can').onclick = () => {
 };
 
 // Initial
-updateHiddenPosMax();
 draw();
 </script>

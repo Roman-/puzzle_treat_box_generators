@@ -3,8 +3,8 @@
 <title>Sequence Pattern (Columns) – generator</title>
 
 <!-- === size === -->
-<label>W <input id=w type=number value=800 min=100></label>
-<label>H <input id=h type=number value=400 min=100></label>
+<label>W <input id=w type=number value=500 min=100></label>
+<label>H <input id=h type=number value=500 min=100></label>
 
 <!-- === 4-digit code + 🎲 === -->
 <label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
@@ -19,11 +19,16 @@
     <option value="countup">Count up (+1)</option>
     <option value="skip2down">Skip 2 down (-2)</option>
     <option value="skip2up">Skip 2 up (+2)</option>
+    <option value="random">Random per column</option>
   </select>
 </label><br>
 
-<label>Steps shown
-  <input id=steps type=range min=3 max=6 step=1 value=4>
+<label>Min steps shown
+  <input id=minSteps type=range min=2 max=8 step=1 value=3>
+</label><br>
+
+<label>Random extra steps
+  <input id=extraSteps type=range min=0 max=4 step=1 value=2>
 </label><br>
 
 <label>Element style
@@ -58,26 +63,31 @@ const ctx = $('can').getContext('2d');
 const NAME = 'sequence_pattern_columns';
 
 const DEF = {
-  w: 800, h: 400, code: '1234',
-  patternType: 'countdown', steps: 4,
+  w: 500, h: 500, code: '1234',
+  patternType: 'countdown', minSteps: 3, extraSteps: 2,
   elemStyle: 'plain', elemSize: 70,
   colSpacing: 30, rowSpacing: 15
 };
 
-// Generate sequence leading to target digit
+// Store random values for each column (pattern type and extra steps)
+let columnPatterns = [];
+let columnExtraSteps = [];
+const PATTERN_TYPES = ['countdown', 'countup', 'skip2down', 'skip2up'];
+
+// Generate sequence leading to target digit (does NOT include target itself)
 function generateSequence(target, patternType, steps) {
   const seq = [];
   let current = target;
 
-  // Build sequence backwards from target
+  // Build sequence backwards from target, NOT including target
   for (let i = 0; i < steps; i++) {
-    seq.unshift(current);
+    // First, step backwards to get the previous value
     switch (patternType) {
       case 'countdown':
-        current = (current + 1) % 10;
+        current = (current + 1) % 10;  // Going backwards from countdown means +1
         break;
       case 'countup':
-        current = (current - 1 + 10) % 10;
+        current = (current - 1 + 10) % 10;  // Going backwards from countup means -1
         break;
       case 'skip2down':
         current = (current + 2) % 10;
@@ -86,6 +96,7 @@ function generateSequence(target, patternType, steps) {
         current = (current - 2 + 10) % 10;
         break;
     }
+    seq.unshift(current);
   }
 
   return seq;
@@ -102,13 +113,25 @@ function draw() {
   const digits = code.split('').map(Number);
   const numCols = digits.length;
   const patternType = $('patternType').value;
-  const steps = +$('steps').value;
+  const minSteps = +$('minSteps').value;
+  const extraSteps = +$('extraSteps').value;
   const elemStyle = $('elemStyle').value;
   const elemSizePct = +$('elemSize').value / 100;
   const colSpacing = +$('colSpacing').value;
   const rowSpacing = +$('rowSpacing').value;
 
-  const numRows = steps + 1; // steps visible + 1 answer row
+  // Ensure we have random values for each column
+  while (columnPatterns.length < numCols) {
+    columnPatterns.push(PATTERN_TYPES[Math.floor(Math.random() * PATTERN_TYPES.length)]);
+  }
+  while (columnExtraSteps.length < numCols) {
+    columnExtraSteps.push(Math.floor(Math.random() * (extraSteps + 1)));
+  }
+
+  // Calculate steps for each column
+  const colSteps = digits.map((_, col) => minSteps + columnExtraSteps[col]);
+  const maxSteps = Math.max(...colSteps);
+  const numRows = maxSteps + 1; // max steps visible + 1 answer row
 
   // Calculate cell size
   const availableW = W - (numCols + 1) * colSpacing;
@@ -128,18 +151,30 @@ function draw() {
   ctx.textBaseline = 'middle';
 
   // Generate sequences for each column
-  const sequences = digits.map(d => generateSequence(d, patternType, steps));
+  const sequences = digits.map((d, col) => {
+    const pattern = patternType === 'random' ? columnPatterns[col] : patternType;
+    return generateSequence(d, pattern, colSteps[col]);
+  });
 
   // Draw each cell
   for (let col = 0; col < numCols; col++) {
     const seq = sequences[col];
+    const stepsForCol = colSteps[col];
+    // Calculate starting row for this column (offset to align at bottom)
+    const startRow = maxSteps - stepsForCol;
 
     for (let row = 0; row < numRows; row++) {
       const isAnswerRow = (row === numRows - 1);
+      const seqIndex = row - startRow;
+      const hasValue = seqIndex >= 0 && seqIndex < stepsForCol;
+
+      // Skip cells above where this column starts (except answer row)
+      if (!isAnswerRow && !hasValue) continue;
+
       const x = startX + col * (cellSize + colSpacing) + cellSize / 2;
       const y = startY + row * (cellSize + rowSpacing) + cellSize / 2;
 
-      const value = isAnswerRow ? '?' : seq[row].toString();
+      const value = isAnswerRow ? '?' : seq[seqIndex].toString();
 
       // Draw element based on style
       if (elemStyle === 'circle') {
@@ -191,11 +226,26 @@ function draw() {
   ctx.setLineDash([]);
 }
 
+// Randomize column-specific values
+function randomizeColumns() {
+  const code = $('code').value || '1234';
+  const numCols = code.length;
+  const extraSteps = +$('extraSteps').value;
+
+  columnPatterns = [];
+  columnExtraSteps = [];
+  for (let i = 0; i < numCols; i++) {
+    columnPatterns.push(PATTERN_TYPES[Math.floor(Math.random() * PATTERN_TYPES.length)]);
+    columnExtraSteps.push(Math.floor(Math.random() * (extraSteps + 1)));
+  }
+}
+
 // Event handlers
 function randCode() {
   const len = Math.min(5, Math.max(1, ($('code').value || '').length || 4));
   const max = Math.pow(10, len);
   $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
+  randomizeColumns();
 }
 
 document.querySelectorAll('[data-t]').forEach(b => {
@@ -208,8 +258,15 @@ $('reset').onclick = () => {
     if (!el) continue;
     el.value = DEF[k];
   }
+  randomizeColumns();
   draw();
 };
+
+// Re-randomize extra steps when extraSteps slider changes
+$('extraSteps').oninput = () => { randomizeColumns(); draw(); };
+
+// Re-randomize when code length changes
+$('code').oninput = () => { randomizeColumns(); draw(); };
 
 document.querySelectorAll('input, select').forEach(el => {
   if (!el.oninput) el.oninput = draw;
@@ -228,5 +285,6 @@ $('can').onclick = () => {
 };
 
 // Initial
+randomizeColumns();
 draw();
 </script>
