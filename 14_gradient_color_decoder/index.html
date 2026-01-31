@@ -136,7 +136,6 @@ function draw() {
   // Layout
   const margin = W * 0.05;
   const legendY = legendCircleR * 1.5;
-  const stripY = H * 0.55;
   const stripWidth = W - 2 * margin;
 
   // Draw legend
@@ -171,32 +170,34 @@ function draw() {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Draw strip with sections
+  // Position strip relative to separator (not fixed percentage)
+  const legendGap = H * 0.05;
+  const stripY = sepY + legendGap;
+
+  // Draw strip as single continuous gradient (avoids boundary artifacts)
   const sectionWidth = stripWidth / N;
-  const borderPx = sectionWidth * borderFrac;
+  const grad = ctx.createLinearGradient(margin, 0, margin + stripWidth, 0);
 
   for (let i = 0; i < N; i++) {
-    const x0 = margin + i * sectionWidth;
     const color = colorMap[digits[i]];
-    const prevColor = i > 0 ? colorMap[digits[i-1]] : null;
-    const nextColor = i < N - 1 ? colorMap[digits[i+1]] : null;
+    const sectionStart = i / N;
+    const sectionEnd = (i + 1) / N;
 
-    // Main solid section (center part)
-    const solidStart = x0 + (i > 0 ? borderPx / 2 : 0);
-    const solidEnd = x0 + sectionWidth - (i < N - 1 ? borderPx / 2 : 0);
+    // Calculate transition zone (half of border width on each side of boundary)
+    const transitionHalf = borderFrac / 2;
 
-    ctx.fillStyle = color;
-    ctx.fillRect(solidStart, stripY, solidEnd - solidStart, stripH);
+    // Plateau start: after transition from previous section (except first section)
+    const plateauStart = i === 0 ? 0 : sectionStart + transitionHalf;
+    // Plateau end: before transition to next section (except last section)
+    const plateauEnd = i === N - 1 ? 1 : sectionEnd - transitionHalf;
 
-    // Left gradient border (blend from previous color)
-    if (i > 0 && borderPx > 0) {
-      const grad = ctx.createLinearGradient(x0 - borderPx/2, 0, x0 + borderPx/2, 0);
-      grad.addColorStop(0, prevColor);
-      grad.addColorStop(1, color);
-      ctx.fillStyle = grad;
-      ctx.fillRect(x0 - borderPx/2, stripY, borderPx, stripH);
-    }
+    // Add color stops for this section's solid plateau
+    grad.addColorStop(Math.max(0, Math.min(1, plateauStart)), color);
+    grad.addColorStop(Math.max(0, Math.min(1, plateauEnd)), color);
   }
+
+  ctx.fillStyle = grad;
+  ctx.fillRect(margin, stripY, stripWidth, stripH);
 
   // Strip outline
   ctx.strokeStyle = '#333';
