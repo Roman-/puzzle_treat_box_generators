@@ -157,11 +157,21 @@ function generateGrid(answerDigit, cols, rows, mode) {
 
   // Pick random position for question
   const pos = validPositions[Math.floor(Math.random() * validPositions.length)];
-  const { r: questionRow, c: questionCol, mirrorR, mirrorC } = pos;
+  const { r: questionRow, c: questionCol } = pos;
 
-  // Set answer digit in both mirror positions
+  // Set answer digit in all symmetric positions to maintain symmetry
   grid[questionRow][questionCol] = answerDigit;
-  grid[mirrorR][mirrorC] = answerDigit;
+
+  if (mode === 'vertical' || mode === 'both') {
+    grid[questionRow][cols - 1 - questionCol] = answerDigit;
+  }
+  if (mode === 'horizontal' || mode === 'both') {
+    grid[rows - 1 - questionRow][questionCol] = answerDigit;
+  }
+  if (mode === 'both') {
+    // Also set the diagonal mirror (opposite corner)
+    grid[rows - 1 - questionRow][cols - 1 - questionCol] = answerDigit;
+  }
 
   return { grid, questionRow, questionCol, answerDigit, cols, rows };
 }
