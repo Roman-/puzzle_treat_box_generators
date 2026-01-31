@@ -1,0 +1,281 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Label Haystack (Color) – generator</title>
+
+<!-- === size === -->
+<label>W <input id=w type=number value=800 min=100></label>
+<label>H <input id=h type=number value=600 min=100></label>
+
+<!-- === code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === rule settings === -->
+<label>Target Color
+  <select id=targetColor>
+    <option value="random" selected>Random</option>
+  </select>
+</label>
+<button id=newRule type=button>🔀 New Color</button><br>
+
+<label>Current Rule: <strong id=currentRuleDisplay>—</strong></label><br>
+
+<hr>
+
+<!-- === visual settings === -->
+<label>Number of labels
+  <input id=labelCount type=range min=10 max=50 step=1 value=20>
+  <span id=labelCountVal>20</span>
+</label><br>
+
+<label>Label size (% of height)
+  <input id=labelSize type=range min=5 max=20 step=1 value=10>
+</label><br>
+
+<label>Rotation variance (degrees)
+  <input id=rotation type=range min=0 max=30 step=1 value=15>
+</label><br>
+
+<label>Grid jitter (% of cell)
+  <input id=jitter type=range min=0 max=40 step=1 value=20>
+</label><br>
+
+<button id=reset type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script src="../shared/colors.js"></script>
+<script>
+
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'label_haystack_color';
+
+// Populate color dropdown using BASIC_COLORS (pure, recognizable colors)
+BASIC_COLORS.forEach((c, i) => {
+  const opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = c.name;
+  $('targetColor').appendChild(opt);
+});
+
+const DEF = {
+  w: 800, h: 600, code: '1234',
+  targetColor: 'random', labelCount: 20,
+  labelSize: 10, rotation: 15, jitter: 20
+};
+
+// State
+let currentColorIndex = 0;
+let labels = []; // { value, x, y, rotation, colorIndex, isAnswer }
+
+const randomElement = arr => arr[Math.floor(Math.random() * arr.length)];
+const shuffle = arr => {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
+function selectColor() {
+  const sel = $('targetColor').value;
+  if (sel === 'random') {
+    currentColorIndex = Math.floor(Math.random() * BASIC_COLORS.length);
+  } else {
+    currentColorIndex = parseInt(sel);
+  }
+  $('currentRuleDisplay').textContent = `Find the ${BASIC_COLORS[currentColorIndex].name.toUpperCase()} number`;
+}
+
+function generateRandomCode(length) {
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += Math.floor(Math.random() * 10);
+  }
+  return code;
+}
+
+function generateLabels() {
+  const codeStr = $('code').value || '1234';
+  const numLabels = +$('labelCount').value;
+  const jitterPct = +$('jitter').value / 100;
+  const rotationVar = +$('rotation').value;
+  const W = +$('w').value;
+  const H = +$('h').value;
+
+  const ruleAreaHeight = H * 0.12;
+  const areaTop = ruleAreaHeight + 10;
+  const areaHeight = H - areaTop - 10;
+  const areaWidth = W - 20;
+
+  // Calculate grid
+  const cols = Math.ceil(Math.sqrt(numLabels * (areaWidth / areaHeight)));
+  const rows = Math.ceil(numLabels / cols);
+  const cellW = areaWidth / cols;
+  const cellH = areaHeight / rows;
+
+  // Generate grid positions
+  const positions = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const baseX = 10 + c * cellW + cellW / 2;
+      const baseY = areaTop + r * cellH + cellH / 2;
+      const jitterX = (Math.random() - 0.5) * cellW * jitterPct;
+      const jitterY = (Math.random() - 0.5) * cellH * jitterPct;
+      positions.push({ x: baseX + jitterX, y: baseY + jitterY });
+    }
+  }
+  shuffle(positions);
+
+  // Generate distractor values (different from answer)
+  const distractorValues = new Set();
+  while (distractorValues.size < numLabels - 1) {
+    const val = generateRandomCode(codeStr.length);
+    if (val !== codeStr) {
+      distractorValues.add(val);
+    }
+  }
+  const distractors = Array.from(distractorValues);
+
+  // Get non-target colors
+  const otherColors = BASIC_COLORS.map((_, i) => i).filter(i => i !== currentColorIndex);
+
+  // Create labels array
+  labels = [];
+
+  // Answer label
+  labels.push({
+    value: codeStr,
+    x: positions[0].x,
+    y: positions[0].y,
+    rotation: (Math.random() - 0.5) * 2 * rotationVar * Math.PI / 180,
+    colorIndex: currentColorIndex,
+    isAnswer: true
+  });
+
+  // Distractor labels
+  for (let i = 0; i < Math.min(distractors.length, numLabels - 1); i++) {
+    labels.push({
+      value: distractors[i],
+      x: positions[i + 1].x,
+      y: positions[i + 1].y,
+      rotation: (Math.random() - 0.5) * 2 * rotationVar * Math.PI / 180,
+      colorIndex: randomElement(otherColors),
+      isAnswer: false
+    });
+  }
+
+  shuffle(labels);
+}
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  if (labels.length === 0) {
+    generateLabels();
+  }
+
+  const labelSizePct = +$('labelSize').value / 100;
+  const fontSize = H * labelSizePct;
+  const ruleAreaHeight = H * 0.12;
+
+  // Draw rule text
+  ctx.fillStyle = '#333';
+  ctx.font = `bold ${ruleAreaHeight * 0.6}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`Find the ${BASIC_COLORS[currentColorIndex].name.toUpperCase()} number`, W / 2, ruleAreaHeight / 2);
+
+  // Draw separator
+  ctx.beginPath();
+  ctx.moveTo(W * 0.05, ruleAreaHeight);
+  ctx.lineTo(W * 0.95, ruleAreaHeight);
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Draw labels
+  ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (const label of labels) {
+    ctx.save();
+    ctx.translate(label.x, label.y);
+    ctx.rotate(label.rotation);
+    ctx.fillStyle = BASIC_COLOR_HEX[label.colorIndex];
+    ctx.fillText(label.value, 0, 0);
+    ctx.restore();
+  }
+
+  $('labelCountVal').textContent = $('labelCount').value;
+}
+
+// Event handlers
+function randCode() {
+  const numDigits = ($('code').value || '').length || 4;
+  $('code').value = generateRandomCode(numDigits);
+  generateLabels();
+}
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => {
+    if (b.dataset.t === 'code') { randCode(); draw(); }
+  };
+});
+
+$('newRule').onclick = () => {
+  selectColor();
+  generateLabels();
+  draw();
+};
+
+$('targetColor').onchange = () => {
+  selectColor();
+  generateLabels();
+  draw();
+};
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    el.value = DEF[k];
+  }
+  selectColor();
+  generateLabels();
+  draw();
+};
+
+$('code').oninput = () => { generateLabels(); draw(); };
+$('labelCount').oninput = () => { generateLabels(); draw(); };
+$('jitter').oninput = () => { generateLabels(); draw(); };
+$('rotation').oninput = () => { generateLabels(); draw(); };
+$('labelSize').oninput = draw;
+
+// Download
+$('can').onclick = () => {
+  const c = $('code').value || '0000';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  draw();
+};
+
+// Initial setup
+selectColor();
+generateLabels();
+draw();
+
+</script>
