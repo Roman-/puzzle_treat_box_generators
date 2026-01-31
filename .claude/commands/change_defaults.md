@@ -1,0 +1,1 @@
+In the prompt that follows, the user specifies the path to the HTML file with the puzzle and asks to change the default values.
