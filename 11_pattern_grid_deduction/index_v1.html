@@ -3,7 +3,7 @@
 <title>Pattern Grid Deduction (Mirror Symmetry) – generator</title>
 
 <!-- === size === -->
-<label>W <input id=w type=number value=800 min=100></label>
+<label>W <input id=w type=number value=1200 min=100></label>
 <label>H <input id=h type=number value=400 min=100></label>
 
 <!-- === 4-digit code + 🎲 === -->
@@ -18,9 +18,9 @@
 
 <label>Pattern mode
   <select id=patternMode>
-    <option value="vertical" selected>Vertical symmetry</option>
+    <option value="vertical">Vertical symmetry</option>
     <option value="horizontal">Horizontal symmetry</option>
-    <option value="both">Both (H + V)</option>
+    <option value="both" selected>Both (H + V)</option>
   </select>
 </label><br>
 
@@ -28,7 +28,7 @@
 
 <!-- === creativity === -->
 <label>Cell size (% of panel)
-  <input id=cellSize type=range min=15 max=40 step=1 value=25>
+  <input id=cellSize type=range min=15 max=40 step=1 value=34>
 </label><br>
 
 <label>Display mode
@@ -46,8 +46,8 @@
 
 <label>Axis style
   <select id=axisStyle>
-    <option value="solid" selected>Solid line</option>
-    <option value="dashed">Dashed line</option>
+    <option value="solid">Solid line</option>
+    <option value="dashed" selected>Dashed line</option>
     <option value="gradient">Gradient fade</option>
   </select>
 </label><br>
@@ -61,7 +61,7 @@
 </label><br>
 
 <label>Legend size (% of height)
-  <input id=legendSize type=range min=3 max=10 step=0.5 value=5>
+  <input id=legendSize type=range min=3 max=10 step=0.5 value=8>
 </label><br>
 
 <button id=reset type=button>🔄 Restore defaults</button>
@@ -78,11 +78,11 @@ const ctx = $('can').getContext('2d');
 const NAME = 'pattern_grid_mirror';
 
 const DEF = {
-  w: 800, h: 400, code: '1234',
-  matrixW: 6, matrixH: 6, patternMode: 'vertical',
-  cellSize: 25, displayMode: 'both', showAxis: true,
-  axisLength: 40, axisStyle: 'solid', panelSpacing: 30, gridBorder: 2,
-  legendSize: 5
+  w: 1200, h: 400, code: '1234',
+  matrixW: 6, matrixH: 6, patternMode: 'both',
+  cellSize: 34, displayMode: 'both', showAxis: true,
+  axisLength: 40, axisStyle: 'dashed', panelSpacing: 30, gridBorder: 2,
+  legendSize: 8
 };
 
 // Store generated grids
