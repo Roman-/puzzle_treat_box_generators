@@ -1,0 +1,320 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Gradient Color Decoder v2 – Dots on Gradient</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=800 min=100></label>
+<label>H <input id=h type=number value=400 min=100></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{3,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Extra legend colors (0-3)
+  <input id=extraColors type=number min=0 max=3 value=1>
+</label><br>
+
+<label>Strip height (× H)
+  <input id=stripHeight type=range min=0.15 max=0.40 step=0.01 value=0.28>
+</label><br>
+
+<label>Dot size (× strip height)
+  <input id=dotSize type=range min=0.3 max=0.8 step=0.05 value=0.55>
+</label><br>
+
+<label>Dot outline (× dot radius)
+  <input id=dotOutline type=range min=0.1 max=0.4 step=0.02 value=0.20>
+</label><br>
+
+<label>Legend circle size (× H)
+  <input id=legendSize type=range min=0.05 max=0.15 step=0.01 value=0.08>
+</label><br>
+
+<label>Gradient stops
+  <input id=gradientStops type=number min=2 max=8 value=5>
+</label><br>
+
+<label>Question mark size (× strip height)
+  <input id=qmarkSize type=range min=0.2 max=0.6 step=0.05 value=0.35>
+</label><br>
+
+<button id=reset type=button>Restore defaults</button>
+<button id=rerender type=button>Re-render</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+// Display current value next to range inputs
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:4px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'gradient_dots';
+
+const DEF = {
+  w: 800, h: 400, code: '1234',
+  extraColors: 1, stripHeight: 0.28, dotSize: 0.55,
+  dotOutline: 0.20, legendSize: 0.08, gradientStops: 5, qmarkSize: 0.35
+};
+
+// HSV to RGB conversion
+function hsvToRgb(h, s, v) {
+  h = h / 360;
+  let r, g, b;
+  const i = Math.floor(h * 6);
+  const f = h * 6 - i;
+  const p = v * (1 - s);
+  const q = v * (1 - f * s);
+  const t = v * (1 - (1 - f) * s);
+  switch (i % 6) {
+    case 0: r = v; g = t; b = p; break;
+    case 1: r = q; g = v; b = p; break;
+    case 2: r = p; g = v; b = t; break;
+    case 3: r = p; g = q; b = v; break;
+    case 4: r = t; g = p; b = v; break;
+    case 5: r = v; g = p; b = q; break;
+  }
+  return `rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+}
+
+// Generate K distinct colors with at least 30° hue separation
+function generateColors(k) {
+  const saturation = 0.8 + Math.random() * 0.2;
+  const value = 0.8 + Math.random() * 0.2;
+  const colors = [];
+  const usedHues = [];
+
+  for (let i = 0; i < k; i++) {
+    let hue;
+    let attempts = 0;
+    do {
+      hue = Math.random() * 360;
+      attempts++;
+    } while (attempts < 100 && usedHues.some(h => Math.min(Math.abs(h - hue), 360 - Math.abs(h - hue)) < 30));
+
+    usedHues.push(hue);
+    colors.push({ hue, color: hsvToRgb(hue, saturation, value) });
+  }
+  return colors;
+}
+
+// Generate random gradient colors (independent of legend)
+function generateGradientColors(count) {
+  const colors = [];
+  for (let i = 0; i < count; i++) {
+    const hue = Math.random() * 360;
+    const sat = 0.5 + Math.random() * 0.5;
+    const val = 0.6 + Math.random() * 0.4;
+    colors.push(hsvToRgb(hue, sat, val));
+  }
+  return colors;
+}
+
+// State
+let colorMap = {};
+let legendDigits = [];
+let gradientColors = [];
+
+function regenerate() {
+  const codeStr = $('code').value || '1234';
+  const digits = codeStr.split('').map(Number);
+  const uniqueDigits = [...new Set(digits)].sort((a, b) => a - b);
+
+  const extraCount = Math.min(+$('extraColors').value, 10 - uniqueDigits.length);
+
+  const allDigits = [...uniqueDigits];
+  const available = [0,1,2,3,4,5,6,7,8,9].filter(d => !uniqueDigits.includes(d));
+  for (let i = 0; i < extraCount && available.length > 0; i++) {
+    const idx = Math.floor(Math.random() * available.length);
+    allDigits.push(available.splice(idx, 1)[0]);
+  }
+  allDigits.sort((a, b) => a - b);
+  legendDigits = allDigits;
+
+  const colors = generateColors(legendDigits.length);
+  colorMap = {};
+  legendDigits.forEach((digit, i) => {
+    colorMap[digit] = colors[i].color;
+  });
+
+  // Generate random gradient
+  gradientColors = generateGradientColors(+$('gradientStops').value);
+}
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  const codeStr = $('code').value || '1234';
+  const digits = codeStr.split('').map(Number);
+  const N = digits.length;
+
+  const legendCircleR = +$('legendSize').value * H / 2;
+  const stripH = +$('stripHeight').value * H;
+  const dotSizeFrac = +$('dotSize').value;
+  const dotOutlineFrac = +$('dotOutline').value;
+  const qmarkFrac = +$('qmarkSize').value;
+
+  const margin = W * 0.05;
+  const legendY = legendCircleR * 1.5;
+  const stripY = H * 0.5;
+  const stripWidth = W - 2 * margin;
+
+  // Draw legend
+  const legendSpacing = (W - 2 * margin) / legendDigits.length;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  legendDigits.forEach((digit, i) => {
+    const x = margin + legendSpacing * (i + 0.5);
+
+    ctx.beginPath();
+    ctx.arc(x, legendY, legendCircleR, 0, Math.PI * 2);
+    ctx.fillStyle = colorMap[digit];
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#000';
+    ctx.font = `bold ${legendCircleR * 1.2}px sans-serif`;
+    ctx.fillText(digit.toString(), x, legendY + legendCircleR * 1.8);
+  });
+
+  // Separator
+  const sepY = legendY + legendCircleR * 2.8;
+  ctx.beginPath();
+  ctx.moveTo(margin, sepY);
+  ctx.lineTo(W - margin, sepY);
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Draw gradient strip
+  const grad = ctx.createLinearGradient(margin, 0, margin + stripWidth, 0);
+  const numStops = gradientColors.length;
+  gradientColors.forEach((color, i) => {
+    grad.addColorStop(i / (numStops - 1), color);
+  });
+  ctx.fillStyle = grad;
+  ctx.fillRect(margin, stripY, stripWidth, stripH);
+
+  // Strip outline
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(margin, stripY, stripWidth, stripH);
+
+  // Draw dots on top of gradient
+  const dotR = stripH * dotSizeFrac / 2;
+  const dotCenterY = stripY + stripH / 2;
+  const sectionWidth = stripWidth / N;
+
+  for (let i = 0; i < N; i++) {
+    const x = margin + sectionWidth * (i + 0.5);
+
+    // White outline (drawn first, larger)
+    ctx.beginPath();
+    ctx.arc(x, dotCenterY, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = dotR * dotOutlineFrac * 2;
+    ctx.stroke();
+
+    // Colored fill
+    ctx.beginPath();
+    ctx.arc(x, dotCenterY, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = colorMap[digits[i]];
+    ctx.fill();
+
+    // Dark thin outline
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Question marks below strip
+  const qmarkY = stripY + stripH + stripH * 0.15;
+  ctx.fillStyle = '#666';
+  ctx.font = `bold ${stripH * qmarkFrac}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  for (let i = 0; i < N; i++) {
+    const x = margin + sectionWidth * (i + 0.5);
+    ctx.fillText('?', x, qmarkY);
+  }
+}
+
+// Event handlers
+function randCode() {
+  const numDigits = ($('code').value || '1234').length;
+  const max = Math.pow(10, numDigits);
+  $('code').value = (Math.random() * max | 0).toString().padStart(numDigits, '0');
+}
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => {
+    if (b.dataset.t === 'code') {
+      randCode();
+      regenerate();
+      draw();
+    }
+  };
+});
+
+$('code').oninput = () => { regenerate(); draw(); };
+$('extraColors').oninput = () => { regenerate(); draw(); };
+$('gradientStops').oninput = () => { regenerate(); draw(); };
+
+document.querySelectorAll('input[type=range]').forEach(el => {
+  el.oninput = draw;
+});
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (el) el.value = DEF[k];
+  }
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if (span) span.textContent = r.value;
+  });
+  regenerate();
+  draw();
+};
+
+$('rerender').onclick = () => {
+  regenerate();
+  draw();
+};
+
+$('can').onclick = () => {
+  const c = $('code').value || '1234';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  regenerate();
+  draw();
+};
+
+regenerate();
+draw();
+</script>
