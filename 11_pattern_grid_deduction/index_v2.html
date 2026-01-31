@@ -33,7 +33,7 @@
   </select>
 </label><br>
 
-<label>Grid rows <input id=gridRows type=number value=3 min=2 max=8 style="width:50px"></label>
+<label>Grid rows <input id=gridRows type=number value=4 min=2 max=8 style="width:50px"></label>
 <label>Grid cols <input id=gridCols type=number value=3 min=2 max=8 style="width:50px"></label><br>
 
 <label>Panel spacing
@@ -45,7 +45,7 @@
 </label><br>
 
 <label>Legend size (% of height)
-  <input id=legendSize type=range min=3 max=15 step=0.5 value=5>
+  <input id=legendSize type=range min=3 max=15 step=0.5 value=8>
 </label><br>
 
 <button id=reset type=button>🔄 Restore defaults</button>
@@ -99,8 +99,8 @@ const NAME = 'pattern_grid_stripes';
 const DEF = {
   w: 900, h: 300, code: '1234',
   cellSize: 25, patternMode: 'random', displayMode: 'color',
-  gridRows: 3, gridCols: 3, panelSpacing: 30, gridBorder: 2,
-  legendSize: 5
+  gridRows: 4, gridCols: 3, panelSpacing: 30, gridBorder: 2,
+  legendSize: 8
 };
 
 // Store generated grids
