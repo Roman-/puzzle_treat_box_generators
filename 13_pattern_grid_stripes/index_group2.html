@@ -1,0 +1,518 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pattern Grid Deduction (Color & Theme Variations) – generator</title>
+
+<!-- === size === -->
+<label>W <input id=w type=number value=900 min=100></label>
+<label>H <input id=h type=number value=300 min=100></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Cell size (% of panel)
+  <input id=cellSize type=range min=15 max=40 step=1 value=25>
+</label><br>
+
+<label>Pattern mode
+  <select id=patternMode>
+    <option value="row">Rows match (horizontal stripes)</option>
+    <option value="column">Columns match (vertical stripes)</option>
+    <option value="random" selected>Random per panel</option>
+  </select>
+</label><br>
+
+<label>Display mode
+  <select id=displayMode>
+    <option value="both">Color + Digit</option>
+    <option value="color" selected>Color only</option>
+    <option value="digit">Digit only</option>
+  </select>
+</label><br>
+
+<label>Grid rows <input id=gridRows type=number value=4 min=2 max=8 style="width:50px"></label>
+<label>Grid cols <input id=gridCols type=number value=3 min=2 max=8 style="width:50px"></label><br>
+
+<label>Panel spacing
+  <input id=panelSpacing type=range min=10 max=60 step=2 value=30>
+</label><br>
+
+<label>Grid border
+  <input id=gridBorder type=range min=1 max=5 step=0.5 value=2>
+</label><br>
+
+<label>Legend size (% of height)
+  <input id=legendSize type=range min=3 max=15 step=0.5 value=8>
+</label><br>
+
+<!-- === GROUP 2: Color & Theme Variations === -->
+<hr>
+<strong>Color & Theme Variations</strong><br>
+
+<label>Color palette
+  <select id=colorPalette>
+    <option value="default" selected>Default</option>
+    <option value="pastel">Pastel</option>
+    <option value="neon">Neon</option>
+    <option value="earth">Earth Tones</option>
+    <option value="cool">Cool</option>
+    <option value="warm">Warm</option>
+  </select>
+</label><br>
+
+<label>Cell fill pattern
+  <select id=fillPattern>
+    <option value="solid" selected>Solid</option>
+    <option value="diagonal">Diagonal Stripes</option>
+    <option value="dots">Dots</option>
+    <option value="crosshatch">Crosshatch</option>
+  </select>
+</label><br>
+
+<label>Pattern density
+  <input id=patternDensity type=range min=3 max=12 step=1 value=6>
+</label><br>
+
+<label><input id=useGradients type=checkbox> Use gradients</label><br>
+
+<label>Gradient direction
+  <select id=gradientDir>
+    <option value="horizontal" selected>Horizontal</option>
+    <option value="vertical">Vertical</option>
+    <option value="radial">Radial</option>
+  </select>
+</label><br>
+
+<label><input id=highlightStripe type=checkbox> Highlight answer stripe</label><br>
+
+<label>Highlight intensity
+  <input id=highlightIntensity type=range min=5 max=30 step=1 value=15>
+</label><br>
+
+<button id=reset type=button>🔄 Restore defaults</button>
+<button id=newPattern type=button>🔀 New patterns (same code)</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+// Color palette definitions
+const PALETTES = {
+  default: [
+    '#d40808', '#0D47A1', '#43A047', '#FDD835', '#FB8C00',
+    '#75118f', '#00CED1', '#ff19d1', '#6D4C41', '#616161'
+  ],
+  pastel: [
+    '#FF9999', '#99CCFF', '#99FF99', '#FFFF99', '#FFCC99',
+    '#CC99FF', '#99FFFF', '#FF99FF', '#CCAA99', '#AAAAAA'
+  ],
+  neon: [
+    '#FF0055', '#00AAFF', '#00FF55', '#FFFF00', '#FF8800',
+    '#AA00FF', '#00FFFF', '#FF00FF', '#FF6600', '#888888'
+  ],
+  earth: [
+    '#8B4513', '#2F4F4F', '#556B2F', '#BDB76B', '#CD853F',
+    '#4B0082', '#5F9EA0', '#DB7093', '#A0522D', '#708090'
+  ],
+  cool: [
+    '#4169E1', '#0000CD', '#228B22', '#9ACD32', '#20B2AA',
+    '#8A2BE2', '#00CED1', '#BA55D3', '#5F9EA0', '#778899'
+  ],
+  warm: [
+    '#DC143C', '#FF4500', '#32CD32', '#FFD700', '#FF8C00',
+    '#C71585', '#FF6347', '#FF69B4', '#D2691E', '#A9A9A9'
+  ]
+};
+
+let COLOR_HEX = PALETTES.default;
+</script>
+<script>
+// Display current value next to range inputs
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:1px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'pattern_grid_stripes_color';
+
+const DEF = {
+  w: 900, h: 300, code: '1234',
+  cellSize: 25, patternMode: 'random', displayMode: 'color',
+  gridRows: 4, gridCols: 3, panelSpacing: 30, gridBorder: 2,
+  legendSize: 8,
+  // Group 2 defaults
+  colorPalette: 'default', fillPattern: 'solid', patternDensity: 6,
+  useGradients: false, gradientDir: 'horizontal',
+  highlightStripe: false, highlightIntensity: 15
+};
+
+let grids = [];
+
+function parseGridSize() {
+  const rows = +$('gridRows').value || 3;
+  const cols = +$('gridCols').value || 3;
+  return { rows, cols };
+}
+
+function generateGrid(answerDigit) {
+  const { rows, cols } = parseGridSize();
+  const globalMode = $('patternMode').value;
+  const mode = globalMode === 'random' ? (Math.random() < 0.5 ? 'row' : 'column') : globalMode;
+
+  const grid = [];
+
+  if (mode === 'row') {
+    const rowColors = [];
+    for (let r = 0; r < rows; r++) {
+      rowColors.push(Math.floor(Math.random() * 10));
+    }
+    const answerRow = Math.floor(Math.random() * rows);
+    rowColors[answerRow] = answerDigit;
+
+    for (let r = 0; r < rows; r++) {
+      const row = [];
+      for (let c = 0; c < cols; c++) {
+        row.push(rowColors[r]);
+      }
+      grid.push(row);
+    }
+
+    const questionCol = Math.floor(Math.random() * cols);
+    return { grid, questionRow: answerRow, questionCol, answerDigit, mode };
+
+  } else {
+    const colColors = [];
+    for (let c = 0; c < cols; c++) {
+      colColors.push(Math.floor(Math.random() * 10));
+    }
+    const answerCol = Math.floor(Math.random() * cols);
+    colColors[answerCol] = answerDigit;
+
+    for (let r = 0; r < rows; r++) {
+      const row = [];
+      for (let c = 0; c < cols; c++) {
+        row.push(colColors[c]);
+      }
+      grid.push(row);
+    }
+
+    const questionRow = Math.floor(Math.random() * rows);
+    return { grid, questionRow, questionCol: answerCol, answerDigit, mode };
+  }
+}
+
+function regenerateGrids() {
+  const codeStr = $('code').value || '1234';
+  const digits = codeStr.split('').map(Number);
+  grids = digits.map(d => generateGrid(d));
+}
+
+// Helper: create gradient fill
+function createGradientFill(x, y, size, colorHex, direction) {
+  let grad;
+  if (direction === 'radial') {
+    grad = ctx.createRadialGradient(x + size/2, y + size/2, 0, x + size/2, y + size/2, size/2);
+    grad.addColorStop(0, lightenColor(colorHex, 40));
+    grad.addColorStop(1, colorHex);
+  } else if (direction === 'vertical') {
+    grad = ctx.createLinearGradient(x, y, x, y + size);
+    grad.addColorStop(0, lightenColor(colorHex, 30));
+    grad.addColorStop(1, colorHex);
+  } else {
+    grad = ctx.createLinearGradient(x, y, x + size, y);
+    grad.addColorStop(0, lightenColor(colorHex, 30));
+    grad.addColorStop(1, colorHex);
+  }
+  return grad;
+}
+
+// Helper: lighten color
+function lightenColor(hex, percent) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, (num >> 16) + Math.floor(255 * percent / 100));
+  const g = Math.min(255, ((num >> 8) & 0x00FF) + Math.floor(255 * percent / 100));
+  const b = Math.min(255, (num & 0x0000FF) + Math.floor(255 * percent / 100));
+  return `rgb(${r},${g},${b})`;
+}
+
+// Helper: draw cell pattern
+function drawCellPattern(x, y, size, patternType, density, baseColor) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, size, size);
+  ctx.clip();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1.5;
+
+  const spacing = size / density;
+
+  if (patternType === 'diagonal') {
+    for (let i = -size; i < size * 2; i += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(x + i, y);
+      ctx.lineTo(x + i + size, y + size);
+      ctx.stroke();
+    }
+  } else if (patternType === 'dots') {
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    const dotSize = spacing / 4;
+    for (let dx = spacing / 2; dx < size; dx += spacing) {
+      for (let dy = spacing / 2; dy < size; dy += spacing) {
+        ctx.beginPath();
+        ctx.arc(x + dx, y + dy, dotSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (patternType === 'crosshatch') {
+    for (let i = -size; i < size * 2; i += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(x + i, y);
+      ctx.lineTo(x + i + size, y + size);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + i + size, y);
+      ctx.lineTo(x + i, y + size);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+// Helper: draw stripe highlight
+function drawStripeHighlight(gridLeft, gridTop, cellSize, actualRows, actualCols, questionRow, questionCol, mode, intensity) {
+  ctx.fillStyle = `rgba(255, 255, 0, ${intensity / 100})`;
+
+  if (mode === 'row') {
+    ctx.fillRect(gridLeft - 5, gridTop + questionRow * cellSize, actualCols * cellSize + 10, cellSize);
+  } else {
+    ctx.fillRect(gridLeft + questionCol * cellSize, gridTop - 5, cellSize, actualRows * cellSize + 10);
+  }
+}
+
+function draw() {
+  // Update color palette
+  COLOR_HEX = PALETTES[$('colorPalette').value] || PALETTES.default;
+
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  if (grids.length === 0) regenerateGrids();
+
+  const displayMode = $('displayMode').value;
+  const showLegend = displayMode === 'color';
+  const fillPattern = $('fillPattern').value;
+  const patternDensity = +$('patternDensity').value;
+  const useGradients = $('useGradients').checked;
+  const gradientDir = $('gradientDir').value;
+  const highlightStripe = $('highlightStripe').checked;
+  const highlightIntensity = +$('highlightIntensity').value;
+
+  const legendSizePct = +$('legendSize').value / 100;
+  const legendSquareSize = H * legendSizePct;
+  const legendY = showLegend ? legendSquareSize * 0.75 : 0;
+  let separatorY = 0;
+
+  if (showLegend) {
+    const legendStartX = W * 0.05;
+    const legendEndX = W * 0.95;
+    const legendSpacing = (legendEndX - legendStartX) / 10;
+
+    ctx.font = `bold ${legendSquareSize * 0.6}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let i = 0; i < 10; i++) {
+      const x = legendStartX + legendSpacing * i + legendSpacing / 2;
+      const lx = x - legendSquareSize / 2;
+      const ly = legendY - legendSquareSize / 2;
+
+      // Legend cell with same styling
+      if (useGradients) {
+        ctx.fillStyle = createGradientFill(lx, ly, legendSquareSize, COLOR_HEX[i], gradientDir);
+      } else {
+        ctx.fillStyle = COLOR_HEX[i];
+      }
+      ctx.fillRect(lx, ly, legendSquareSize, legendSquareSize);
+
+      if (fillPattern !== 'solid') {
+        drawCellPattern(lx, ly, legendSquareSize, fillPattern, patternDensity, COLOR_HEX[i]);
+      }
+
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(lx, ly, legendSquareSize, legendSquareSize);
+
+      ctx.fillStyle = '#333';
+      ctx.fillText(i.toString(), x, legendY + legendSquareSize / 2 + legendSquareSize * 0.4);
+    }
+
+    separatorY = legendY + legendSquareSize / 2 + legendSquareSize * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.02, separatorY);
+    ctx.lineTo(W * 0.98, separatorY);
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  const { rows, cols } = parseGridSize();
+  const numPanels = grids.length;
+  const panelSpacing = +$('panelSpacing').value;
+  const gridAreaTop = showLegend ? separatorY + 15 : 15;
+  const gridAreaHeight = H - gridAreaTop - 15;
+  const totalPanelWidth = W - 40;
+  const panelWidth = (totalPanelWidth - (numPanels - 1) * panelSpacing) / numPanels;
+  const cellSizePct = +$('cellSize').value / 100;
+
+  const maxCellW = panelWidth * cellSizePct;
+  const maxCellH = gridAreaHeight * cellSizePct;
+  const cellSize = Math.min(maxCellW, maxCellH);
+
+  const borderWidth = +$('gridBorder').value;
+
+  for (let p = 0; p < numPanels; p++) {
+    const { grid, questionRow, questionCol, answerDigit, mode } = grids[p];
+    const actualRows = grid.length;
+    const actualCols = grid[0].length;
+    const gridWidth = cellSize * actualCols;
+    const gridHeight = cellSize * actualRows;
+
+    const panelX = 20 + p * (panelWidth + panelSpacing);
+    const panelCenterX = panelX + panelWidth / 2;
+    const gridLeft = panelCenterX - gridWidth / 2;
+    const gridTop = gridAreaTop + (gridAreaHeight - gridHeight) / 2;
+
+    // Draw stripe highlight (before cells)
+    if (highlightStripe) {
+      drawStripeHighlight(gridLeft, gridTop, cellSize, actualRows, actualCols, questionRow, questionCol, mode, highlightIntensity);
+    }
+
+    // Draw grid cells
+    for (let row = 0; row < actualRows; row++) {
+      for (let col = 0; col < actualCols; col++) {
+        const x = gridLeft + col * cellSize;
+        const y = gridTop + row * cellSize;
+        const value = grid[row][col];
+        const isQuestion = row === questionRow && col === questionCol;
+
+        // Cell background
+        if (isQuestion) {
+          ctx.fillStyle = '#fff';
+        } else if (displayMode !== 'digit') {
+          if (useGradients) {
+            ctx.fillStyle = createGradientFill(x, y, cellSize, COLOR_HEX[value], gradientDir);
+          } else {
+            ctx.fillStyle = COLOR_HEX[value];
+          }
+        } else {
+          ctx.fillStyle = '#f5f5f5';
+        }
+        ctx.fillRect(x, y, cellSize, cellSize);
+
+        // Draw pattern on colored cells
+        if (!isQuestion && displayMode !== 'digit' && fillPattern !== 'solid') {
+          drawCellPattern(x, y, cellSize, fillPattern, patternDensity, COLOR_HEX[value]);
+        }
+
+        // Cell border
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+
+        // Cell content
+        const centerX = x + cellSize / 2;
+        const centerY = y + cellSize / 2;
+        const fontSize = cellSize * 0.5;
+        ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        if (isQuestion) {
+          ctx.fillStyle = '#666';
+          ctx.fillText('?', centerX, centerY);
+        } else if (displayMode === 'both') {
+          ctx.fillStyle = '#fff';
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1;
+          ctx.strokeText(value.toString(), centerX, centerY);
+          ctx.fillText(value.toString(), centerX, centerY);
+        } else if (displayMode === 'digit') {
+          ctx.fillStyle = '#333';
+          ctx.fillText(value.toString(), centerX, centerY);
+        }
+      }
+    }
+  }
+}
+
+// Event handlers
+function randCode() {
+  const len = Math.min(5, Math.max(1, ($('code').value || '').length || 4));
+  const max = Math.pow(10, len);
+  $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
+  regenerateGrids();
+}
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => { if (b.dataset.t === 'code') { randCode(); draw(); } };
+});
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = DEF[k];
+    else el.value = DEF[k];
+  }
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if (span && span.tagName === 'SPAN') span.textContent = r.value;
+  });
+  regenerateGrids();
+  draw();
+};
+
+$('newPattern').onclick = () => {
+  regenerateGrids();
+  draw();
+};
+
+$('code').oninput = () => { regenerateGrids(); draw(); };
+$('patternMode').onchange = () => { regenerateGrids(); draw(); };
+$('gridRows').onchange = () => { regenerateGrids(); draw(); };
+$('gridCols').onchange = () => { regenerateGrids(); draw(); };
+
+document.querySelectorAll('input, select').forEach(el => {
+  if (!el.oninput) el.oninput = draw;
+  if (!el.onchange) el.onchange = draw;
+});
+
+// Download
+$('can').onclick = () => {
+  const c = $('code').value || '0000';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  draw();
+};
+
+// Initial
+regenerateGrids();
+draw();
+</script>

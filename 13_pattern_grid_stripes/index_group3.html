@@ -1,0 +1,557 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pattern Grid Deduction (Layout Variations) – generator</title>
+
+<!-- === size === -->
+<label>W <input id=w type=number value=900 min=100></label>
+<label>H <input id=h type=number value=300 min=100></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Cell size (% of panel)
+  <input id=cellSize type=range min=15 max=40 step=1 value=25>
+</label><br>
+
+<label>Pattern mode
+  <select id=patternMode>
+    <option value="row">Rows match (horizontal stripes)</option>
+    <option value="column">Columns match (vertical stripes)</option>
+    <option value="random" selected>Random per panel</option>
+  </select>
+</label><br>
+
+<label>Display mode
+  <select id=displayMode>
+    <option value="both">Color + Digit</option>
+    <option value="color" selected>Color only</option>
+    <option value="digit">Digit only</option>
+  </select>
+</label><br>
+
+<label>Grid rows <input id=gridRows type=number value=4 min=2 max=8 style="width:50px"></label>
+<label>Grid cols <input id=gridCols type=number value=3 min=2 max=8 style="width:50px"></label><br>
+
+<label>Panel spacing
+  <input id=panelSpacing type=range min=10 max=60 step=2 value=30>
+</label><br>
+
+<label>Grid border
+  <input id=gridBorder type=range min=1 max=5 step=0.5 value=2>
+</label><br>
+
+<label>Legend size (% of height)
+  <input id=legendSize type=range min=3 max=15 step=0.5 value=8>
+</label><br>
+
+<!-- === GROUP 3: Layout & Legend Variations === -->
+<hr>
+<strong>Layout & Legend Variations</strong><br>
+
+<label>Panel arrangement
+  <select id=panelArrangement>
+    <option value="horizontal" selected>Horizontal Row</option>
+    <option value="vertical">Vertical Stack</option>
+    <option value="grid">2x2 Grid</option>
+  </select>
+</label><br>
+
+<label>Legend position
+  <select id=legendPosition>
+    <option value="top" selected>Top</option>
+    <option value="bottom">Bottom</option>
+    <option value="left">Left</option>
+    <option value="right">Right</option>
+  </select>
+</label><br>
+
+<label>Legend style
+  <select id=legendStyle>
+    <option value="bar" selected>Horizontal Bar</option>
+    <option value="list">Vertical List</option>
+    <option value="compact">Compact Grid</option>
+  </select>
+</label><br>
+
+<label><input id=showPanelNumbers type=checkbox> Show panel numbers</label><br>
+
+<label>Panel number position
+  <select id=panelNumberPos>
+    <option value="above" selected>Above</option>
+    <option value="below">Below</option>
+    <option value="badge">Corner Badge</option>
+  </select>
+</label><br>
+
+<label><input id=asymmetricGrids type=checkbox> Asymmetric grids</label><br>
+
+<label>Min rows <input id=minRows type=number value=3 min=2 max=6 style="width:50px"></label>
+<label>Max rows <input id=maxRows type=number value=5 min=3 max=8 style="width:50px"></label><br>
+
+<label>Min cols <input id=minCols type=number value=2 min=2 max=6 style="width:50px"></label>
+<label>Max cols <input id=maxCols type=number value=4 min=3 max=8 style="width:50px"></label><br>
+
+<button id=reset type=button>🔄 Restore defaults</button>
+<button id=newPattern type=button>🔀 New patterns (same code)</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+const DIGIT_COLORS = [
+  { index: 0, hex: '#d40808', name: 'Red' },
+  { index: 1, hex: '#0D47A1', name: 'Blue' },
+  { index: 2, hex: '#43A047', name: 'Green' },
+  { index: 3, hex: '#FDD835', name: 'Yellow' },
+  { index: 4, hex: '#FB8C00', name: 'Orange' },
+  { index: 5, hex: '#75118f', name: 'Purple' },
+  { index: 6, hex: '#00CED1', name: 'Aqua' },
+  { index: 7, hex: '#ff19d1', name: 'Pink' },
+  { index: 8, hex: '#6D4C41', name: 'Brown' },
+  { index: 9, hex: '#616161', name: 'Dark Grey' },
+];
+const COLOR_HEX = DIGIT_COLORS.map(c => c.hex);
+</script>
+<script>
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:1px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'pattern_grid_stripes_layout';
+
+const DEF = {
+  w: 900, h: 300, code: '1234',
+  cellSize: 25, patternMode: 'random', displayMode: 'color',
+  gridRows: 4, gridCols: 3, panelSpacing: 30, gridBorder: 2,
+  legendSize: 8,
+  // Group 3 defaults
+  panelArrangement: 'horizontal', legendPosition: 'top', legendStyle: 'bar',
+  showPanelNumbers: false, panelNumberPos: 'above',
+  asymmetricGrids: false, minRows: 3, maxRows: 5, minCols: 2, maxCols: 4
+};
+
+let grids = [];
+
+function parseGridSize(panelIndex) {
+  if ($('asymmetricGrids').checked && grids[panelIndex]) {
+    return { rows: grids[panelIndex].rows, cols: grids[panelIndex].cols };
+  }
+  const rows = +$('gridRows').value || 3;
+  const cols = +$('gridCols').value || 3;
+  return { rows, cols };
+}
+
+function randomInRange(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function generateGrid(answerDigit) {
+  let rows, cols;
+  if ($('asymmetricGrids').checked) {
+    const minRows = +$('minRows').value || 3;
+    const maxRows = +$('maxRows').value || 5;
+    const minCols = +$('minCols').value || 2;
+    const maxCols = +$('maxCols').value || 4;
+    rows = randomInRange(minRows, maxRows);
+    cols = randomInRange(minCols, maxCols);
+  } else {
+    rows = +$('gridRows').value || 3;
+    cols = +$('gridCols').value || 3;
+  }
+
+  const globalMode = $('patternMode').value;
+  const mode = globalMode === 'random' ? (Math.random() < 0.5 ? 'row' : 'column') : globalMode;
+
+  const grid = [];
+
+  if (mode === 'row') {
+    const rowColors = [];
+    for (let r = 0; r < rows; r++) {
+      rowColors.push(Math.floor(Math.random() * 10));
+    }
+    const answerRow = Math.floor(Math.random() * rows);
+    rowColors[answerRow] = answerDigit;
+
+    for (let r = 0; r < rows; r++) {
+      const row = [];
+      for (let c = 0; c < cols; c++) {
+        row.push(rowColors[r]);
+      }
+      grid.push(row);
+    }
+
+    const questionCol = Math.floor(Math.random() * cols);
+    return { grid, questionRow: answerRow, questionCol, answerDigit, mode, rows, cols };
+
+  } else {
+    const colColors = [];
+    for (let c = 0; c < cols; c++) {
+      colColors.push(Math.floor(Math.random() * 10));
+    }
+    const answerCol = Math.floor(Math.random() * cols);
+    colColors[answerCol] = answerDigit;
+
+    for (let r = 0; r < rows; r++) {
+      const row = [];
+      for (let c = 0; c < cols; c++) {
+        row.push(colColors[c]);
+      }
+      grid.push(row);
+    }
+
+    const questionRow = Math.floor(Math.random() * rows);
+    return { grid, questionRow, questionCol: answerCol, answerDigit, mode, rows, cols };
+  }
+}
+
+function regenerateGrids() {
+  const codeStr = $('code').value || '1234';
+  const digits = codeStr.split('').map(Number);
+  grids = digits.map(d => generateGrid(d));
+}
+
+// Helper: draw legend in different styles
+function drawLegend(legendArea, style, squareSize) {
+  const { x, y, width, height } = legendArea;
+
+  ctx.font = `bold ${squareSize * 0.6}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (style === 'bar') {
+    // Horizontal bar
+    const spacing = width / 10;
+    for (let i = 0; i < 10; i++) {
+      const cx = x + spacing * i + spacing / 2;
+      const cy = y + height / 2 - squareSize * 0.3;
+
+      ctx.fillStyle = COLOR_HEX[i];
+      ctx.fillRect(cx - squareSize / 2, cy - squareSize / 2, squareSize, squareSize);
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx - squareSize / 2, cy - squareSize / 2, squareSize, squareSize);
+
+      ctx.fillStyle = '#333';
+      ctx.fillText(i.toString(), cx, cy + squareSize / 2 + squareSize * 0.4);
+    }
+  } else if (style === 'list') {
+    // Vertical list
+    const spacing = height / 10;
+    for (let i = 0; i < 10; i++) {
+      const cx = x + width / 2;
+      const cy = y + spacing * i + spacing / 2;
+
+      ctx.fillStyle = COLOR_HEX[i];
+      ctx.fillRect(cx - squareSize - 5, cy - squareSize / 2, squareSize, squareSize);
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx - squareSize - 5, cy - squareSize / 2, squareSize, squareSize);
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#333';
+      ctx.fillText(i.toString(), cx + 5, cy);
+    }
+  } else if (style === 'compact') {
+    // 2x5 or 5x2 grid
+    const isVertical = height > width;
+    const gridCols = isVertical ? 2 : 5;
+    const gridRows = isVertical ? 5 : 2;
+    const cellW = width / gridCols;
+    const cellH = height / gridRows;
+    const sz = Math.min(cellW, cellH) * 0.6;
+
+    for (let i = 0; i < 10; i++) {
+      const col = i % gridCols;
+      const row = Math.floor(i / gridCols);
+      const cx = x + col * cellW + cellW / 2;
+      const cy = y + row * cellH + cellH / 2;
+
+      ctx.fillStyle = COLOR_HEX[i];
+      ctx.fillRect(cx - sz / 2, cy - sz / 2, sz, sz);
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx - sz / 2, cy - sz / 2, sz, sz);
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#333';
+      ctx.font = `bold ${sz * 0.5}px system-ui, sans-serif`;
+      ctx.fillText(i.toString(), cx, cy + sz / 2 + sz * 0.35);
+    }
+  }
+}
+
+// Helper: draw panel number
+function drawPanelNumber(panelIndex, x, y, w, h, position, fontSize) {
+  ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#666';
+
+  const ordinal = ['1st', '2nd', '3rd', '4th', '5th'][panelIndex] || `${panelIndex + 1}`;
+
+  if (position === 'above') {
+    ctx.fillText(ordinal, x + w / 2, y - fontSize);
+  } else if (position === 'below') {
+    ctx.fillText(ordinal, x + w / 2, y + h + fontSize);
+  } else if (position === 'badge') {
+    const badgeSize = fontSize * 1.5;
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    ctx.arc(x + w - badgeSize / 2, y + badgeSize / 2, badgeSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${fontSize * 0.8}px system-ui, sans-serif`;
+    ctx.fillText((panelIndex + 1).toString(), x + w - badgeSize / 2, y + badgeSize / 2);
+  }
+}
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  if (grids.length === 0) regenerateGrids();
+
+  const displayMode = $('displayMode').value;
+  const showLegend = displayMode === 'color';
+  const legendPosition = $('legendPosition').value;
+  const legendStyle = $('legendStyle').value;
+  const panelArrangement = $('panelArrangement').value;
+  const showPanelNumbers = $('showPanelNumbers').checked;
+  const panelNumberPos = $('panelNumberPos').value;
+
+  const legendSizePct = +$('legendSize').value / 100;
+  const legendSize = (legendPosition === 'left' || legendPosition === 'right')
+    ? W * legendSizePct * 2
+    : H * legendSizePct * 2;
+
+  // Calculate areas based on legend position
+  let legendArea = { x: 0, y: 0, width: 0, height: 0 };
+  let gridArea = { x: 20, y: 15, width: W - 40, height: H - 30 };
+
+  if (showLegend) {
+    const margin = 10;
+    if (legendPosition === 'top') {
+      legendArea = { x: W * 0.05, y: margin, width: W * 0.9, height: legendSize };
+      gridArea = { x: 20, y: legendSize + margin * 2, width: W - 40, height: H - legendSize - margin * 3 };
+    } else if (legendPosition === 'bottom') {
+      legendArea = { x: W * 0.05, y: H - legendSize - margin, width: W * 0.9, height: legendSize };
+      gridArea = { x: 20, y: margin, width: W - 40, height: H - legendSize - margin * 3 };
+    } else if (legendPosition === 'left') {
+      legendArea = { x: margin, y: margin, width: legendSize, height: H - margin * 2 };
+      gridArea = { x: legendSize + margin * 2, y: margin, width: W - legendSize - margin * 3, height: H - margin * 2 };
+    } else if (legendPosition === 'right') {
+      legendArea = { x: W - legendSize - margin, y: margin, width: legendSize, height: H - margin * 2 };
+      gridArea = { x: margin, y: margin, width: W - legendSize - margin * 3, height: H - margin * 2 };
+    }
+
+    const squareSize = Math.min(legendArea.width, legendArea.height) * 0.3;
+    drawLegend(legendArea, legendStyle, squareSize);
+
+    // Draw separator
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (legendPosition === 'top') {
+      ctx.moveTo(W * 0.02, legendArea.y + legendArea.height + 5);
+      ctx.lineTo(W * 0.98, legendArea.y + legendArea.height + 5);
+    } else if (legendPosition === 'bottom') {
+      ctx.moveTo(W * 0.02, legendArea.y - 5);
+      ctx.lineTo(W * 0.98, legendArea.y - 5);
+    } else if (legendPosition === 'left') {
+      ctx.moveTo(legendArea.x + legendArea.width + 5, H * 0.02);
+      ctx.lineTo(legendArea.x + legendArea.width + 5, H * 0.98);
+    } else if (legendPosition === 'right') {
+      ctx.moveTo(legendArea.x - 5, H * 0.02);
+      ctx.lineTo(legendArea.x - 5, H * 0.98);
+    }
+    ctx.stroke();
+  }
+
+  // Calculate panel positions based on arrangement
+  const numPanels = grids.length;
+  const panelSpacing = +$('panelSpacing').value;
+  const panelPositions = [];
+
+  if (panelArrangement === 'horizontal') {
+    const panelWidth = (gridArea.width - (numPanels - 1) * panelSpacing) / numPanels;
+    for (let i = 0; i < numPanels; i++) {
+      panelPositions.push({
+        x: gridArea.x + i * (panelWidth + panelSpacing),
+        y: gridArea.y,
+        width: panelWidth,
+        height: gridArea.height
+      });
+    }
+  } else if (panelArrangement === 'vertical') {
+    const panelHeight = (gridArea.height - (numPanels - 1) * panelSpacing) / numPanels;
+    for (let i = 0; i < numPanels; i++) {
+      panelPositions.push({
+        x: gridArea.x,
+        y: gridArea.y + i * (panelHeight + panelSpacing),
+        width: gridArea.width,
+        height: panelHeight
+      });
+    }
+  } else if (panelArrangement === 'grid') {
+    const cols = Math.ceil(Math.sqrt(numPanels));
+    const rows = Math.ceil(numPanels / cols);
+    const panelWidth = (gridArea.width - (cols - 1) * panelSpacing) / cols;
+    const panelHeight = (gridArea.height - (rows - 1) * panelSpacing) / rows;
+    for (let i = 0; i < numPanels; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      panelPositions.push({
+        x: gridArea.x + col * (panelWidth + panelSpacing),
+        y: gridArea.y + row * (panelHeight + panelSpacing),
+        width: panelWidth,
+        height: panelHeight
+      });
+    }
+  }
+
+  const borderWidth = +$('gridBorder').value;
+  const cellSizePct = +$('cellSize').value / 100;
+
+  // Draw each panel
+  for (let p = 0; p < numPanels; p++) {
+    const { grid, questionRow, questionCol, answerDigit, mode, rows, cols } = grids[p];
+    const panel = panelPositions[p];
+    const actualRows = grid.length;
+    const actualCols = grid[0].length;
+
+    const maxCellW = panel.width * cellSizePct;
+    const maxCellH = panel.height * cellSizePct;
+    const cellSize = Math.min(maxCellW, maxCellH);
+
+    const gridWidth = cellSize * actualCols;
+    const gridHeight = cellSize * actualRows;
+    const gridLeft = panel.x + (panel.width - gridWidth) / 2;
+    const gridTop = panel.y + (panel.height - gridHeight) / 2;
+
+    // Draw panel number
+    if (showPanelNumbers) {
+      drawPanelNumber(p, gridLeft, gridTop, gridWidth, gridHeight, panelNumberPos, cellSize * 0.4);
+    }
+
+    // Draw grid cells
+    for (let row = 0; row < actualRows; row++) {
+      for (let col = 0; col < actualCols; col++) {
+        const x = gridLeft + col * cellSize;
+        const y = gridTop + row * cellSize;
+        const value = grid[row][col];
+        const isQuestion = row === questionRow && col === questionCol;
+
+        if (isQuestion) {
+          ctx.fillStyle = '#fff';
+        } else if (displayMode !== 'digit') {
+          ctx.fillStyle = COLOR_HEX[value];
+        } else {
+          ctx.fillStyle = '#f5f5f5';
+        }
+        ctx.fillRect(x, y, cellSize, cellSize);
+
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+
+        const centerX = x + cellSize / 2;
+        const centerY = y + cellSize / 2;
+        const fontSize = cellSize * 0.5;
+        ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        if (isQuestion) {
+          ctx.fillStyle = '#666';
+          ctx.fillText('?', centerX, centerY);
+        } else if (displayMode === 'both') {
+          ctx.fillStyle = '#fff';
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1;
+          ctx.strokeText(value.toString(), centerX, centerY);
+          ctx.fillText(value.toString(), centerX, centerY);
+        } else if (displayMode === 'digit') {
+          ctx.fillStyle = '#333';
+          ctx.fillText(value.toString(), centerX, centerY);
+        }
+      }
+    }
+  }
+}
+
+// Event handlers
+function randCode() {
+  const len = Math.min(5, Math.max(1, ($('code').value || '').length || 4));
+  const max = Math.pow(10, len);
+  $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
+  regenerateGrids();
+}
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => { if (b.dataset.t === 'code') { randCode(); draw(); } };
+});
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = DEF[k];
+    else el.value = DEF[k];
+  }
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if (span && span.tagName === 'SPAN') span.textContent = r.value;
+  });
+  regenerateGrids();
+  draw();
+};
+
+$('newPattern').onclick = () => {
+  regenerateGrids();
+  draw();
+};
+
+$('code').oninput = () => { regenerateGrids(); draw(); };
+$('patternMode').onchange = () => { regenerateGrids(); draw(); };
+$('gridRows').onchange = () => { regenerateGrids(); draw(); };
+$('gridCols').onchange = () => { regenerateGrids(); draw(); };
+$('asymmetricGrids').onchange = () => { regenerateGrids(); draw(); };
+$('minRows').onchange = () => { regenerateGrids(); draw(); };
+$('maxRows').onchange = () => { regenerateGrids(); draw(); };
+$('minCols').onchange = () => { regenerateGrids(); draw(); };
+$('maxCols').onchange = () => { regenerateGrids(); draw(); };
+
+document.querySelectorAll('input, select').forEach(el => {
+  if (!el.oninput) el.oninput = draw;
+  if (!el.onchange) el.onchange = draw;
+});
+
+// Download
+$('can').onclick = () => {
+  const c = $('code').value || '0000';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  draw();
+};
+
+// Initial
+regenerateGrids();
+draw();
+</script>
