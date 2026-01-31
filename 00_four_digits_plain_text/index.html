@@ -37,6 +37,16 @@
         style="border:1px solid grey;cursor:pointer"></canvas>
 
 <script>
+// Display current value next to range inputs
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:1px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+<script>
 const $ = id => document.getElementById(id);
 const ctx = $('can').getContext('2d');
 const DEF = {w:600,h:300,code:'1234',font:'Arial',size:0.3,color:'#000000'};

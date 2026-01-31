@@ -55,7 +55,42 @@
 
 <canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
 
-<script src="../shared/colors.js"></script>
+<script>
+// Color definitions for digit-to-color mapping puzzles
+const DIGIT_COLORS = [
+  { index: 0, hex: '#d40808', name: 'Red' },
+  { index: 1, hex: '#0D47A1', name: 'Blue' },
+  { index: 2, hex: '#43A047', name: 'Green' },
+  { index: 3, hex: '#FDD835', name: 'Yellow' },
+  { index: 4, hex: '#FB8C00', name: 'Orange' },
+  { index: 5, hex: '#75118f', name: 'Purple' },
+  { index: 6, hex: '#00CED1', name: 'Aqua' },
+  { index: 7, hex: '#ff19d1', name: 'Pink' },
+  { index: 8, hex: '#6D4C41', name: 'Brown' },
+  { index: 9, hex: '#616161', name: 'Dark Grey' },
+];
+const DIGIT_COLOR_HEX = DIGIT_COLORS.map(c => c.hex);
+const BASIC_COLORS = [
+  { hex: '#FF0000', name: 'Red' },
+  { hex: '#0000FF', name: 'Blue' },
+  { hex: '#00AA00', name: 'Green' },
+  { hex: '#FFCC00', name: 'Yellow' },
+  { hex: '#FF00FF', name: 'Purple' },
+];
+const BASIC_COLOR_HEX = BASIC_COLORS.map(c => c.hex);
+const COLORS = DIGIT_COLORS;
+const COLOR_HEX = DIGIT_COLOR_HEX;
+</script>
+<script>
+// Display current value next to range inputs
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:1px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
 <script>
 const $ = id => document.getElementById(id);
 const ctx = $('can').getContext('2d');
