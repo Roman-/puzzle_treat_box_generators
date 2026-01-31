@@ -1,6 +1,6 @@
 # Words Spelled Out Puzzle
 
-This generator creates a puzzle where a 4 or 5 digit code is spelled out using custom fonts.
+This generator creates a puzzle where a 4 or 5 digit code is spelled out using custom, tricky-to-read fonts.
 
 ![Puzzle Preview](use_this_pic.png)
 
