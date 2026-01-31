@@ -28,7 +28,7 @@
 
 <!-- === creativity === -->
 <label>Cell size (% of panel)
-  <input id=cellSize type=range min=15 max=40 step=1 value=34>
+  <input id=cellSize type=range min=15 max=40 step=1 value=30>
 </label><br>
 
 <label>Display mode
@@ -61,7 +61,7 @@
 </label><br>
 
 <label>Legend size (% of height)
-  <input id=legendSize type=range min=3 max=10 step=0.5 value=8>
+  <input id=legendSize type=range min=3 max=10 step=0.5 value=6>
 </label><br>
 
 <button id=reset type=button>🔄 Restore defaults</button>
@@ -105,9 +105,9 @@ const NAME = 'pattern_grid_mirror';
 const DEF = {
   w: 1200, h: 400, code: '1234',
   matrixW: 6, matrixH: 6, patternMode: 'both',
-  cellSize: 34, displayMode: 'both', showAxis: true,
+  cellSize: 30, displayMode: 'both', showAxis: true,
   axisLength: 40, axisStyle: 'dashed', panelSpacing: 30, gridBorder: 2,
-  legendSize: 8
+  legendSize: 6
 };
 
 // Store generated grids
