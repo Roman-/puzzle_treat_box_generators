@@ -4,7 +4,7 @@
 
 <!-- === size first === -->
 <label>W <input id=w type=number value=800 min=100></label>
-<label>H <input id=h type=number value=400 min=100></label>
+<label>H <input id=h type=number value=300 min=100></label>
 
 <!-- === 4-digit code + 🎲 === -->
 <label>Code <input id=code type=text value=1234 pattern="\d{3,5}" maxlength=5></label>
@@ -14,23 +14,31 @@
 
 <!-- === creativity === -->
 <label>Extra legend colors (0-6)
-  <input id=extraColors type=number min=0 max=6 value=1>
+  <input id=extraColors type=number min=0 max=6 value=2>
 </label><br>
 
 <label>Strip height (× H)
-  <input id=stripHeight type=range min=0.15 max=0.40 step=0.01 value=0.25>
+  <input id=stripHeight type=range min=0.15 max=0.40 step=0.01 value=0.35>
 </label><br>
 
 <label>Gradient border width (× section)
-  <input id=borderWidth type=range min=0 max=0.30 step=0.01 value=0.10>
+  <input id=borderWidth type=range min=0 max=0.30 step=0.01 value=0.18>
 </label><br>
 
 <label>Legend circle size (× H)
-  <input id=legendSize type=range min=0.05 max=0.15 step=0.01 value=0.08>
+  <input id=legendSize type=range min=0.05 max=0.15 step=0.01 value=0.10>
 </label><br>
 
 <label>Question mark size (× strip height)
   <input id=qmarkSize type=range min=0.3 max=0.8 step=0.05 value=0.5>
+</label><br>
+
+<label>
+  <input id=showMarkers type=checkbox checked> Show markers
+</label><br>
+
+<label>Marker height (× strip height)
+  <input id=markerHeight type=range min=0.2 max=0.5 step=0.05 value=0.35>
 </label><br>
 
 <button id=reset type=button>Restore defaults</button>
@@ -57,9 +65,9 @@ const ctx = $('can').getContext('2d');
 const NAME = 'gradient_segments';
 
 const DEF = {
-  w: 800, h: 400, code: '1234',
-  extraColors: 1, stripHeight: 0.25, borderWidth: 0.10,
-  legendSize: 0.08, qmarkSize: 0.5
+  w: 800, h: 300, code: '1234',
+  extraColors: 2, stripHeight: 0.35, borderWidth: 0.18,
+  legendSize: 0.10, qmarkSize: 0.5, showMarkers: true, markerHeight: 0.35
 };
 
 // Curated distinct colors from shared/colors.js
@@ -204,15 +212,33 @@ function draw() {
   ctx.lineWidth = 2;
   ctx.strokeRect(margin, stripY, stripWidth, stripH);
 
-  // Question marks below strip
-  const qmarkY = stripY + stripH + stripH * qmarkFrac * 0.7;
-  ctx.fillStyle = '#666';
+  // Optional markers and question marks below strip
+  const showMarkers = $('showMarkers').checked;
+  const markerFrac = +$('markerHeight').value;
+  const markerPx = stripH * markerFrac;
+  const markerOffset = showMarkers ? markerPx + 5 : 0;
+  const qmarkY = stripY + stripH + markerOffset + stripH * qmarkFrac * 0.3;
+
   ctx.font = `bold ${stripH * qmarkFrac}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 
   for (let i = 0; i < N; i++) {
     const x = margin + sectionWidth * (i + 0.5);
+
+    // Draw triangle marker if enabled
+    if (showMarkers) {
+      ctx.beginPath();
+      ctx.moveTo(x, stripY + stripH + 2);
+      ctx.lineTo(x - markerPx * 0.4, stripY + stripH + markerPx);
+      ctx.lineTo(x + markerPx * 0.4, stripY + stripH + markerPx);
+      ctx.closePath();
+      ctx.fillStyle = '#555';
+      ctx.fill();
+    }
+
+    // Question mark
+    ctx.fillStyle = '#666';
     ctx.fillText('?', x, qmarkY);
   }
 }
@@ -241,10 +267,17 @@ document.querySelectorAll('input[type=range]').forEach(el => {
   el.oninput = draw;
 });
 
+$('showMarkers').onchange = draw;
+
 $('reset').onclick = () => {
   for (const k in DEF) {
     const el = $(k);
-    if (el) el.value = DEF[k];
+    if (!el) continue;
+    if (el.type === 'checkbox') {
+      el.checked = DEF[k];
+    } else {
+      el.value = DEF[k];
+    }
   }
   // Update range displays
   document.querySelectorAll('input[type=range]').forEach(r => {
