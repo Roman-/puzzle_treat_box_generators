@@ -12,8 +12,8 @@ Work in the directory of this puzzle.
 
 In planning/variations_ideas.md, Write down 28 ideas on how to change, tweak, improve the puzzle both visually and mechanically.
 Including but not limiting to: changing the shapes, the fonts, the element locations relative to each other, changing colors to gradients or even pictures, adding an extra level of complexity or abstraction, adding a different interpretation to the objects of the puzzle, etc.
-Each idea should preferably add extra settings / setting group / controls to the puzzle to make it adjustable.
 Do not limit yourself and brainstorm everything that comes to mind on changing every single aspect of the puzzle.
+Each idea should add extra settings / setting group / controls to the puzzle to make it adjustable. Checkmarks, select boxes, range sliders, etc.
 
 # stage 2: picking ideas
 Think through what ideas clearly contradict the guidelines described in README.md in project root.
