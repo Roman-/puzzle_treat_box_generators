@@ -15,6 +15,7 @@ This repository contains js generators for these challenges.
 - The code input has "🎲" button to the right of it to randomize the code and re-render instantly. The new random code should have the same amount of digits as before the randomization.
 - Clicking the canvas downloads the .png image named like puzzle_name_XXXX, where XXXX is the code. It then changes the code to the random one and re-renders it.
 - For range inputs, copy code from shared/js/display-values-next-to-range-inputs.js
+- The README.md for each puzzle should only describe puzzle mechanics very concisely and with minimal markdown formatting, not including all the customization options. See 01_count_filled_circles_in_grid/README.md for an example
 
 ## Generator page layout
 - Canvas size controls
