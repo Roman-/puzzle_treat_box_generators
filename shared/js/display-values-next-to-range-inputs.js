@@ -1,6 +1,6 @@
 // Display current value next to range inputs
 //
-// Copy this code into your puzzle's <script> section to show
+// Use this code in your puzzle's <script> section to show
 // the current value of each range slider next to the control.
 // Place it before your initial draw() call.
 document.querySelectorAll('input[type=range]').forEach(r => {

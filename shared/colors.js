@@ -4,7 +4,7 @@
  * Purpose: Use in puzzles with reference tables (legends) that map digits 0-9
  * to colors. Examples: color sequence circles, pattern grid deduction.
  *
- * IMPORTANT: When creating a puzzle with a reference table, shuffle this array
+ * When creating a puzzle with a reference table, shuffle this array
  * before use so digit 0 doesn't always map to red. The shuffled mapping should
  * be displayed in the legend. This prevents children from memorizing a fixed
  * color-digit association across puzzles.
