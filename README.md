@@ -8,6 +8,7 @@ This repository contains js generators for these challenges.
 
 ## Generators
 - Each generator allows creating and downloading an image on the canvas. The image encodes N digits (min 3, default 4, max 5).
+- Minimal html/js code, no styles
 - Canvas size (width and height) should be the first customization setting, set as two number inputs
 - All other sizes, including margins, font size and line thickness, are relative: instead of fixed pixel the control should be range between 0 and some maximum value.
 - Changing any input value re-renders the canvas for instant preview
@@ -15,11 +16,11 @@ This repository contains js generators for these challenges.
 - Clicking the canvas downloads the .png image named like puzzle_name_XXXX, where XXXX is the code. It then changes the code to the random one and re-renders it.
 
 ## Generator page layout
-- Minimal html code, no styles
 - Canvas size controls
 - The code text input, filled with initial 4-digit code "1234"
 - horizontal line
 - Creativity controls to change some properties of the puzzle.
+- "Restore defaults" button restores the parameters; "Re-render" button re-renders the canvas, so if any randomization is applied, the user gets the new randomized image on canvas.
 - Canvas. White background (printer friendly), 1px grey border, cursor:pointer, title: click to download
 
 ## Examples
