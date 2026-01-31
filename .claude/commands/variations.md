@@ -10,18 +10,16 @@ Work in the directory of this puzzle.
 
 # stage 1: ideation
 
-In planning/variations_ideas.md, Write down 30 ideas on how to change, tweak, improve the puzzle both visually and mechanically.
-including but not limiting to changing the shapes, the fonts, the locations relative to each other, adding new parameters, changing colors to gradients or even pictures, adding an extra level of complexity, adding a different interpretation to the objects of the puzzle, etc.
+In planning/variations_ideas.md, Write down 28 ideas on how to change, tweak, improve the puzzle both visually and mechanically.
+Including but not limiting to: changing the shapes, the fonts, the element locations relative to each other, changing colors to gradients or even pictures, adding an extra level of complexity or abstraction, adding a different interpretation to the objects of the puzzle, etc.
+Each idea should preferably add extra settings / setting group / controls to the puzzle to make it adjustable.
 Do not limit yourself and brainstorm everything that comes to mind on changing every single aspect of the puzzle.
 
-# stage 2: critique
+# stage 2: picking ideas
+Think through what ideas clearly contradict the guidelines described in README.md in project root.
+Discard them, leaving only 12 remaining ideas. Split those into 3 groups of 4 ideas each, output them in planning/group1_ideas.md, planning/group2_ideas.md, planning/group3_ideas.md.
 
-Then create planning/variations_ideas_critique.md. In it, Go through every single idea generated and prove that it will contradict the guidelines described in README.md in project root.
+# stage 3: implementation
 
-# stage 3: rational implementation
-
-Based planning/variations_ideas_critique.md, pick 3 groups of ideas. In each group, include 1 to 5 ideas that Has minimal contradiction to principles & guidelines, and that would be realistic to implement.
-
-Then copy-paste the main puzzle .html file 3 times: index_group1.html, index_group2.html, index_group3.html.
-
+For each group, then copy-paste the puzzle's main index.html page file 3 times: index_group1.html, index_group2.html, index_group3.html.
 Implement the three groups of features on top of each file created.
