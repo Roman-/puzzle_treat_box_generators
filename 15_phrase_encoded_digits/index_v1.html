@@ -1,0 +1,241 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Tally Mark Digit Counter – generator</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=1200 min=50></label>
+<label>H <input id=h type=number value=400 min=50></label>
+
+<!-- === code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{3,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Mark thickness
+  <input id=thickness type=range min=0.02 max=0.12 step=0.01 value=0.06>
+</label><br>
+
+<label>Mark height
+  <input id=markHeight type=range min=0.3 max=0.9 step=0.05 value=0.6>
+</label><br>
+
+<label>Mark spacing
+  <input id=spacing type=range min=0.3 max=1.5 step=0.1 value=0.8>
+</label><br>
+
+<label>Group gap (5s)
+  <input id=groupGap type=range min=0.5 max=3 step=0.1 value=1.5>
+</label><br>
+
+<label>Strike angle
+  <input id=strikeAngle type=range min=20 max=70 step=5 value=45>
+</label><br>
+
+<label><input id=showSeparators type=checkbox checked> Show section separators</label><br>
+
+<label><input id=handDrawn type=checkbox> Hand-drawn style</label><br>
+
+<button id=reset type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download"
+        style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+// Display current value next to range inputs
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:4px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'tally_marks';
+const DEF = {
+  w: 1200, h: 400, code: '1234',
+  thickness: 0.06, markHeight: 0.6, spacing: 0.8,
+  groupGap: 1.5, strikeAngle: 45,
+  showSeparators: true, handDrawn: false
+};
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  const codeStr = $('code').value || '1234';
+  const digits = codeStr.split('').map(Number).filter(d => !isNaN(d));
+  const N = digits.length || 4;
+
+  const sectionW = W / N;
+  const thickness = +$('thickness').value;
+  const markHeightFrac = +$('markHeight').value;
+  const spacingFrac = +$('spacing').value;
+  const groupGapFrac = +$('groupGap').value;
+  const strikeAngle = +$('strikeAngle').value;
+  const showSeps = $('showSeparators').checked;
+  const handDrawn = $('handDrawn').checked;
+
+  // Draw separators
+  if (showSeps) {
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < N; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * sectionW, 0);
+      ctx.lineTo(i * sectionW, H);
+      ctx.stroke();
+    }
+  }
+
+  // Draw tally marks for each digit
+  digits.forEach((digit, idx) => {
+    drawTallySection(idx * sectionW, 0, sectionW, H, digit, {
+      thickness, markHeightFrac, spacingFrac, groupGapFrac, strikeAngle, handDrawn
+    });
+  });
+}
+
+function drawTallySection(x0, y0, W, H, digit, opts) {
+  if (digit === 0) return; // No marks for zero
+
+  const baseSize = Math.min(W, H);
+  const markW = baseSize * opts.thickness;
+  const markH = H * opts.markHeightFrac;
+  const spacing = markW * opts.spacingFrac;
+  const groupGap = markW * opts.groupGapFrac;
+
+  // Calculate total width needed
+  const groups = Math.floor(digit / 5);
+  const remainder = digit % 5;
+
+  let totalWidth = 0;
+  if (groups > 0) {
+    totalWidth += groups * (4 * markW + 3 * spacing + markW * 0.5); // 5-mark groups with strike
+    totalWidth += (groups - 1) * groupGap; // gaps between 5-groups
+  }
+  if (remainder > 0) {
+    if (groups > 0) totalWidth += groupGap;
+    totalWidth += remainder * markW + (remainder - 1) * spacing;
+  }
+
+  let xPos = x0 + (W - totalWidth) / 2;
+  const yCenter = y0 + H / 2;
+  const yTop = yCenter - markH / 2;
+  const yBottom = yCenter + markH / 2;
+
+  ctx.fillStyle = '#222';
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = markW;
+  ctx.lineCap = 'round';
+
+  let marksDrawn = 0;
+
+  // Draw complete groups of 5
+  for (let g = 0; g < groups; g++) {
+    const groupStartX = xPos;
+
+    // Draw 4 vertical marks
+    for (let m = 0; m < 4; m++) {
+      const mx = xPos + markW / 2;
+      drawMark(mx, yTop, mx, yBottom, markW, opts.handDrawn);
+      xPos += markW + spacing;
+    }
+
+    // Draw diagonal strike through
+    const strikeStartX = groupStartX;
+    const strikeEndX = xPos - spacing + markW * 0.3;
+    const rad = opts.strikeAngle * Math.PI / 180;
+    const strikeYOffset = (strikeEndX - strikeStartX) * Math.tan(rad) / 2;
+
+    ctx.beginPath();
+    if (opts.handDrawn) {
+      drawWobblyLine(strikeStartX, yCenter + strikeYOffset, strikeEndX, yCenter - strikeYOffset);
+    } else {
+      ctx.moveTo(strikeStartX, yCenter + strikeYOffset);
+      ctx.lineTo(strikeEndX, yCenter - strikeYOffset);
+    }
+    ctx.stroke();
+
+    xPos += groupGap;
+    marksDrawn += 5;
+  }
+
+  // Draw remaining marks
+  for (let m = 0; m < remainder; m++) {
+    const mx = xPos + markW / 2;
+    drawMark(mx, yTop, mx, yBottom, markW, opts.handDrawn);
+    xPos += markW + spacing;
+  }
+}
+
+function drawMark(x1, y1, x2, y2, width, wobbly) {
+  ctx.beginPath();
+  if (wobbly) {
+    drawWobblyLine(x1, y1, x2, y2);
+  } else {
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+  }
+  ctx.stroke();
+}
+
+function drawWobblyLine(x1, y1, x2, y2) {
+  const segments = 8;
+  const wobble = 2;
+  ctx.moveTo(x1 + (Math.random() - 0.5) * wobble, y1 + (Math.random() - 0.5) * wobble);
+  for (let i = 1; i <= segments; i++) {
+    const t = i / segments;
+    const x = x1 + (x2 - x1) * t + (Math.random() - 0.5) * wobble;
+    const y = y1 + (y2 - y1) * t + (Math.random() - 0.5) * wobble;
+    ctx.lineTo(x, y);
+  }
+}
+
+// Live preview
+oninput = draw;
+draw();
+
+// Random code
+function randCode() {
+  const len = $('code').value.length || 4;
+  $('code').value = Array.from({length: len}, () => Math.floor(Math.random() * 10)).join('');
+}
+
+document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => {
+  if (b.dataset.t === 'code') { randCode(); draw(); }
+});
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = DEF[k];
+    else el.value = DEF[k];
+  }
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if (span && span.tagName === 'SPAN') span.textContent = r.value;
+  });
+  draw();
+};
+
+// Click to download
+$('can').onclick = () => {
+  const c = $('code').value || '1234';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  draw();
+};
+</script>
