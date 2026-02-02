@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Missing Digit Grid Match – Decorated 2 (Shared Gradient Frame)</title>
+<title>Missing Digit Grid Match – generator</title>
 
 <!-- === size first === -->
 <label>W <input id=w type=number value=800 min=50></label>
@@ -10,12 +10,25 @@
 <label>Code <input id=code type=text value=1234 pattern="\d{4}" maxlength=4></label>
 <button type=button data-t="code">🎲</button>
 
-<hr>
 
-<!-- === creativity === -->
+<!-- === layout === -->
 <label>Columns <input id=cols type=number min=2 max=10 value=3></label><br>
 <label>Rows <input id=rows type=number min=2 max=10 value=3></label><br>
 
+<label>Side margin (× W)
+  <input id=marginX type=range min=0 max=0.15 step=0.01 value=0.02>
+</label><br>
+
+<label>Top/bottom margin (× H)
+  <input id=marginY type=range min=0 max=0.2 step=0.01 value=0.05>
+</label><br>
+
+<label>Grid gap (× W)
+  <input id=gap type=range min=0 max=0.1 step=0.01 value=0.05>
+</label><br>
+
+
+<!-- === typography === -->
 <label>Font
   <select id=font>
     <option>Arial</option><option>Helvetica</option><option>Comic Sans MS</option>
@@ -28,15 +41,47 @@
   <input id=fSize type=range min=0.2 max=0.9 step=0.01 value=0.7>
 </label><br>
 
+<label><input id=boldText type=checkbox> Bold text</label><br>
+
+
+<!-- === colors === -->
+<label>Border color <input id=borderColor type=color value="#000000"></label><br>
+
+<label><input id=colorAid type=checkbox checked> Colour aid</label><br>
+
+<label>Color saturation
+  <input id=colorSat type=range min=20 max=100 step=5 value=80>
+</label><br>
+
+<label>Color lightness
+  <input id=colorLight type=range min=40 max=90 step=5 value=70>
+</label><br>
+
+
+<!-- === borders === -->
 <label>Cell border (× cell)
   <input id=border type=range min=0 max=0.2 step=0.01 value=0.05>
 </label><br>
 
-<label>Grid gap (× W)
-  <input id=gap type=range min=0 max=0.1 step=0.01 value=0.05>
+<label>Grid border (× cell)
+  <input id=gridBorder type=range min=0 max=0.3 step=0.01 value=0>
 </label><br>
 
-<label><input id=colorAid type=checkbox checked> Colour aid</label><br>
+<label>Cell roundness (× cell)
+  <input id=cellRadius type=range min=0 max=0.3 step=0.01 value=0>
+</label><br>
+
+
+<!-- === decoration === -->
+<label><input id=showFrame type=checkbox> Rainbow frame</label><br>
+
+<label>Frame thickness
+  <input id=frameThick type=range min=2 max=20 step=1 value=8>
+</label><br>
+
+<label>Frame padding
+  <input id=framePad type=range min=5 max=40 step=1 value=15>
+</label><br>
 
 <button id=reset type=button>🔄 Restore defaults</button>
 
@@ -57,20 +102,42 @@ document.querySelectorAll('input[type=range]').forEach(r => {
 <script>
 const $ = id => document.getElementById(id);
 const ctx = $('can').getContext('2d');
-const SCENES = 4, NAME = 'missing_digit_grid_gradient';
+const SCENES = 4, NAME = 'missing_digit_grid';
 const DEF = {
   w:800, h:300, code:'1234',
   cols:3, rows:3,
-  font:'Arial', fSize:0.7,
-  border:0.05, gap:0.05,
-  colorAid:true
+  marginX:0.02, marginY:0.05,
+  gap:0.05,
+  font:'Arial', fSize:0.7, boldText:false,
+  borderColor:'#000000',
+  colorAid:true, colorSat:80, colorLight:70,
+  border:0.05, gridBorder:0, cellRadius:0,
+  showFrame:false, frameThick:8, framePad:15
 };
 
 function randCode(){ $('code').value = (Math.random()*1e4|0).toString().padStart(4,'0'); }
 
 function randomColor(){
   const h = Math.floor(Math.random()*360);
-  return `hsl(${h},80%,70%)`;
+  const s = +$('colorSat').value;
+  const l = +$('colorLight').value;
+  return `hsl(${h},${s}%,${l}%)`;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  if (r > w/2) r = w/2;
+  if (r > h/2) r = h/2;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
 }
 
 function draw(){
@@ -79,12 +146,19 @@ function draw(){
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
 
   const cols=+$('cols').value, rows=+$('rows').value;
+  const marginX = +$('marginX').value * W;
+  const marginY = +$('marginY').value * H;
   const gap = +$('gap').value * W;
-  const sceneW = (W - gap*(SCENES-1)) / SCENES;
-  const cell = Math.min(sceneW/cols, H/rows);
+
+  const availW = W - 2*marginX;
+  const availH = H - 2*marginY;
+  const sceneW = (availW - gap*(SCENES-1)) / SCENES;
+  const cell = Math.min(sceneW/cols, availH/rows);
   const gridW = cols*cell, gridH = rows*cell;
   const font = +$('fSize').value * cell;
   const border = +$('border').value * cell;
+  const gridBorder = +$('gridBorder').value * cell;
+  const cellRadius = +$('cellRadius').value * cell;
   const digits = ($('code').value||'0000').padEnd(4,'0').slice(0,4).split('').map(Number);
 
   const total = rows*cols;
@@ -97,78 +171,98 @@ function draw(){
   positions.forEach((p,i) => base[p] = digits[i]);
 
   const colors = Array.from({length: total}, randomColor);
+  const fontWeight = $('boldText').checked ? 'bold ' : '';
 
-  // Calculate bounding box for all grids
-  const firstX = 0*(sceneW+gap) + (sceneW-gridW)/2;
-  const lastX = (SCENES-1)*(sceneW+gap) + (sceneW-gridW)/2 + gridW;
-  const topY = (H - gridH)/2;
-  const bottomY = topY + gridH;
+  // Calculate bounding box for all grids (for frame)
+  const firstX = marginX + (sceneW-gridW)/2;
+  const lastX = marginX + (SCENES-1)*(sceneW+gap) + (sceneW-gridW)/2 + gridW;
+  const topY = marginY + (availH - gridH)/2;
 
-  const frameMargin = 15;
-  const frameX = firstX - frameMargin;
-  const frameY = topY - frameMargin;
-  const frameW = lastX - firstX + frameMargin * 2;
-  const frameH = gridH + frameMargin * 2;
+  // Draw rainbow frame if enabled
+  if ($('showFrame').checked) {
+    const frameMargin = +$('framePad').value;
+    const frameX = firstX - frameMargin;
+    const frameY = topY - frameMargin;
+    const frameW = lastX - firstX + frameMargin * 2;
+    const frameH = gridH + frameMargin * 2;
 
-  // Draw rainbow gradient frame around ALL grids
-  const gradient = ctx.createLinearGradient(frameX, 0, frameX + frameW, 0);
-  gradient.addColorStop(0, '#ff6b6b');
-  gradient.addColorStop(0.25, '#feca57');
-  gradient.addColorStop(0.5, '#48dbfb');
-  gradient.addColorStop(0.75, '#ff9ff3');
-  gradient.addColorStop(1, '#ff6b6b');
+    const gradient = ctx.createLinearGradient(frameX, 0, frameX + frameW, 0);
+    gradient.addColorStop(0, '#ff6b6b');
+    gradient.addColorStop(0.25, '#feca57');
+    gradient.addColorStop(0.5, '#48dbfb');
+    gradient.addColorStop(0.75, '#ff9ff3');
+    gradient.addColorStop(1, '#ff6b6b');
 
-  ctx.strokeStyle = gradient;
-  ctx.lineWidth = 8;
-  ctx.lineJoin = 'round';
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = +$('frameThick').value;
+    ctx.lineJoin = 'round';
 
-  // Draw rounded rectangle frame
-  const radius = 12;
-  ctx.beginPath();
-  ctx.moveTo(frameX + radius, frameY);
-  ctx.lineTo(frameX + frameW - radius, frameY);
-  ctx.quadraticCurveTo(frameX + frameW, frameY, frameX + frameW, frameY + radius);
-  ctx.lineTo(frameX + frameW, frameY + frameH - radius);
-  ctx.quadraticCurveTo(frameX + frameW, frameY + frameH, frameX + frameW - radius, frameY + frameH);
-  ctx.lineTo(frameX + radius, frameY + frameH);
-  ctx.quadraticCurveTo(frameX, frameY + frameH, frameX, frameY + frameH - radius);
-  ctx.lineTo(frameX, frameY + radius);
-  ctx.quadraticCurveTo(frameX, frameY, frameX + radius, frameY);
-  ctx.closePath();
-  ctx.stroke();
+    const radius = 12;
+    ctx.beginPath();
+    ctx.moveTo(frameX + radius, frameY);
+    ctx.lineTo(frameX + frameW - radius, frameY);
+    ctx.quadraticCurveTo(frameX + frameW, frameY, frameX + frameW, frameY + radius);
+    ctx.lineTo(frameX + frameW, frameY + frameH - radius);
+    ctx.quadraticCurveTo(frameX + frameW, frameY + frameH, frameX + frameW - radius, frameY + frameH);
+    ctx.lineTo(frameX + radius, frameY + frameH);
+    ctx.quadraticCurveTo(frameX, frameY + frameH, frameX, frameY + frameH - radius);
+    ctx.lineTo(frameX, frameY + radius);
+    ctx.quadraticCurveTo(frameX, frameY, frameX + radius, frameY);
+    ctx.closePath();
+    ctx.stroke();
 
-  // Draw subtle gradient background inside frame
-  const bgGradient = ctx.createLinearGradient(frameX, 0, frameX + frameW, 0);
-  bgGradient.addColorStop(0, 'rgba(255, 107, 107, 0.1)');
-  bgGradient.addColorStop(0.5, 'rgba(72, 219, 251, 0.1)');
-  bgGradient.addColorStop(1, 'rgba(255, 107, 107, 0.1)');
-  ctx.fillStyle = bgGradient;
-  ctx.fill();
+    // Subtle gradient fill inside frame
+    const bgGradient = ctx.createLinearGradient(frameX, 0, frameX + frameW, 0);
+    bgGradient.addColorStop(0, 'rgba(255, 107, 107, 0.1)');
+    bgGradient.addColorStop(0.5, 'rgba(72, 219, 251, 0.1)');
+    bgGradient.addColorStop(1, 'rgba(255, 107, 107, 0.1)');
+    ctx.fillStyle = bgGradient;
+    ctx.fill();
+  }
 
   for(let s=0; s<SCENES; s++){
-    const x0 = s*(sceneW+gap) + (sceneW-gridW)/2;
-    const y0 = (H - gridH)/2;
+    const x0 = marginX + s*(sceneW+gap) + (sceneW-gridW)/2;
+    const y0 = marginY + (availH - gridH)/2;
+
+    // Draw grid outer border if set
+    if (gridBorder > 0) {
+      ctx.strokeStyle = $('borderColor').value;
+      ctx.lineWidth = gridBorder;
+      ctx.strokeRect(x0 - gridBorder/2, y0 - gridBorder/2, gridW + gridBorder, gridH + gridBorder);
+    }
 
     for(let r=0; r<rows; r++){
       for(let c=0; c<cols; c++){
         const idx = r*cols+c;
         const x = x0 + c*cell;
         const y = y0 + r*cell;
-        if ($('colorAid').checked){
-          ctx.fillStyle = colors[idx];
-          ctx.fillRect(x,y,cell,cell);
+
+        // Cell background
+        if (cellRadius > 0) {
+          roundRect(ctx, x, y, cell, cell, cellRadius);
+          ctx.fillStyle = $('colorAid').checked ? colors[idx] : '#fff';
+          ctx.fill();
+          if (border > 0) {
+            ctx.strokeStyle = $('borderColor').value;
+            ctx.lineWidth = border;
+            ctx.stroke();
+          }
         } else {
-          ctx.fillStyle = '#fff';
-          ctx.fillRect(x,y,cell,cell);
+          ctx.fillStyle = $('colorAid').checked ? colors[idx] : '#fff';
+          ctx.fillRect(x, y, cell, cell);
+          if (border > 0) {
+            ctx.strokeStyle = $('borderColor').value;
+            ctx.lineWidth = border;
+            ctx.strokeRect(x, y, cell, cell);
+          }
         }
-        ctx.strokeStyle='#000';
-        ctx.lineWidth=border;
-        ctx.strokeRect(x,y,cell,cell);
-        ctx.fillStyle='#000';
-        ctx.font=`${font}px '${$('font').value}'`;
-        ctx.textAlign='center';
-        ctx.textBaseline='middle';
-        const char = (positions[s]===idx)?'?' : base[idx];
+
+        // Text
+        ctx.fillStyle = '#000';
+        ctx.font = `${fontWeight}${font}px '${$('font').value}'`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const char = (positions[s] === idx) ? '?' : base[idx];
         ctx.fillText(char, x+cell/2, y+cell/2);
       }
     }
@@ -179,7 +273,20 @@ oninput = draw; draw();
 
 document.querySelectorAll('[data-t]').forEach(b => b.onclick=()=>{ if(b.dataset.t==='code'){ randCode(); draw(); } });
 
-$('reset').onclick = () => { for(const k in DEF){ const el=$(k); if(!el) continue; if(el.type==='checkbox') el.checked=DEF[k]; else el.value=DEF[k]; } draw(); };
+$('reset').onclick = () => {
+  for(const k in DEF){
+    const el=$(k);
+    if(!el) continue;
+    if(el.type==='checkbox') el.checked=DEF[k];
+    else el.value=DEF[k];
+  }
+  // Update range display spans
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if(span && span.tagName === 'SPAN') span.textContent = r.value;
+  });
+  draw();
+};
 
 $('can').onclick = () => {
   const c=($('code').value||'0000').padEnd(4,'0').slice(0,4);
