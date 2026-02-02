@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Missing Digit Grid Match – generator</title>
+<title>Missing Digit Grid Match – Decorated 2 (Shared Gradient Frame)</title>
 
 <!-- === size first === -->
 <label>W <input id=w type=number value=800 min=50></label>
@@ -57,7 +57,7 @@ document.querySelectorAll('input[type=range]').forEach(r => {
 <script>
 const $ = id => document.getElementById(id);
 const ctx = $('can').getContext('2d');
-const SCENES = 4, NAME = 'missing_digit_grid';
+const SCENES = 4, NAME = 'missing_digit_grid_gradient';
 const DEF = {
   w:800, h:300, code:'1234',
   cols:3, rows:3,
@@ -98,9 +98,57 @@ function draw(){
 
   const colors = Array.from({length: total}, randomColor);
 
+  // Calculate bounding box for all grids
+  const firstX = 0*(sceneW+gap) + (sceneW-gridW)/2;
+  const lastX = (SCENES-1)*(sceneW+gap) + (sceneW-gridW)/2 + gridW;
+  const topY = (H - gridH)/2;
+  const bottomY = topY + gridH;
+
+  const frameMargin = 15;
+  const frameX = firstX - frameMargin;
+  const frameY = topY - frameMargin;
+  const frameW = lastX - firstX + frameMargin * 2;
+  const frameH = gridH + frameMargin * 2;
+
+  // Draw rainbow gradient frame around ALL grids
+  const gradient = ctx.createLinearGradient(frameX, 0, frameX + frameW, 0);
+  gradient.addColorStop(0, '#ff6b6b');
+  gradient.addColorStop(0.25, '#feca57');
+  gradient.addColorStop(0.5, '#48dbfb');
+  gradient.addColorStop(0.75, '#ff9ff3');
+  gradient.addColorStop(1, '#ff6b6b');
+
+  ctx.strokeStyle = gradient;
+  ctx.lineWidth = 8;
+  ctx.lineJoin = 'round';
+
+  // Draw rounded rectangle frame
+  const radius = 12;
+  ctx.beginPath();
+  ctx.moveTo(frameX + radius, frameY);
+  ctx.lineTo(frameX + frameW - radius, frameY);
+  ctx.quadraticCurveTo(frameX + frameW, frameY, frameX + frameW, frameY + radius);
+  ctx.lineTo(frameX + frameW, frameY + frameH - radius);
+  ctx.quadraticCurveTo(frameX + frameW, frameY + frameH, frameX + frameW - radius, frameY + frameH);
+  ctx.lineTo(frameX + radius, frameY + frameH);
+  ctx.quadraticCurveTo(frameX, frameY + frameH, frameX, frameY + frameH - radius);
+  ctx.lineTo(frameX, frameY + radius);
+  ctx.quadraticCurveTo(frameX, frameY, frameX + radius, frameY);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Draw subtle gradient background inside frame
+  const bgGradient = ctx.createLinearGradient(frameX, 0, frameX + frameW, 0);
+  bgGradient.addColorStop(0, 'rgba(255, 107, 107, 0.1)');
+  bgGradient.addColorStop(0.5, 'rgba(72, 219, 251, 0.1)');
+  bgGradient.addColorStop(1, 'rgba(255, 107, 107, 0.1)');
+  ctx.fillStyle = bgGradient;
+  ctx.fill();
+
   for(let s=0; s<SCENES; s++){
     const x0 = s*(sceneW+gap) + (sceneW-gridW)/2;
     const y0 = (H - gridH)/2;
+
     for(let r=0; r<rows; r++){
       for(let c=0; c<cols; c++){
         const idx = r*cols+c;

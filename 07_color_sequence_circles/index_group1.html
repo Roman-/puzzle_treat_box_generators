@@ -1,0 +1,507 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Color Sequence Shapes – generator (Group 1: Shape & Style)</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=800 min=100></label>
+<label>H <input id=h type=number value=600 min=100></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Difficulty (pattern complexity)
+  <select id=level>
+    <option value=0>Level 0 - All same color</option>
+    <option value=1>Level 1 - Two colors alternating</option>
+    <option value=2 selected>Level 2 - Simple patterns</option>
+    <option value=3>Level 3 - Medium patterns</option>
+    <option value=4>Level 4 - Complex patterns</option>
+  </select>
+</label><br>
+
+<label>Shape radius (× scene W)
+  <input id=radius type=range min=0.15 max=1.00 step=0.01 value=0.30>
+</label><br>
+
+<label>Vertical overlap (× diameter)
+  <input id=overlap type=range min=0.20 max=0.95 step=0.01 value=0.40>
+</label><br>
+
+<label>Shape outline (× radius)
+  <input id=outline type=range min=0 max=0.15 step=0.01 value=0.05>
+</label><br>
+
+<label>Outline color <input id=outlineColor type=color value="#333333">
+</label><br>
+
+<label>Legend shape size (× H)
+  <input id=legendSize type=range min=0.03 max=0.08 step=0.005 value=0.05>
+</label><br>
+
+<label>Min shapes per column
+  <input id=minCircles type=number min=3 max=30 value=13>
+</label><br>
+
+<label>Variance (adds 0 to N shapes)
+  <input id=variance type=number min=0 max=10 value=0>
+</label><br>
+
+<label>X jitter (× radius)
+  <input id=jitter type=range min=0 max=1.5 step=0.05 value=0>
+</label><br>
+
+<label><input id=shuffleLegend type=checkbox> Shuffle legend order</label><br>
+
+<hr>
+<strong>Group 1: Shape & Style Variations</strong><br>
+
+<label>Shape type
+  <select id=shapeType>
+    <option value="circle" selected>Circle</option>
+    <option value="square">Square</option>
+    <option value="triangle">Triangle</option>
+    <option value="hexagon">Hexagon</option>
+    <option value="star">Star</option>
+  </select>
+</label><br>
+
+<label><input id=ringMode type=checkbox> Ring mode (outline only)</label><br>
+
+<label>Ring thickness (× radius)
+  <input id=ringThickness type=range min=0.05 max=0.5 step=0.01 value=0.15>
+</label><br>
+
+<label>Corner radius (0=sharp, 1=round)
+  <input id=cornerRadius type=range min=0 max=1 step=0.05 value=1>
+</label><br>
+
+<label><input id=glowEnabled type=checkbox> Glow effect</label><br>
+
+<label>Glow size (× radius)
+  <input id=glowSize type=range min=0 max=0.3 step=0.01 value=0.15>
+</label><br>
+
+<label>Glow opacity
+  <input id=glowOpacity type=range min=0.1 max=0.8 step=0.05 value=0.4>
+</label><br>
+
+<hr>
+
+<button id=reset type=button>🔄 Restore defaults</button>
+<button id=newPattern type=button>🔀 New patterns (same code)</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+// Color definitions for digit-to-color mapping puzzles
+const DIGIT_COLORS = [
+  { index: 0, hex: '#d40808', name: 'Red' },
+  { index: 1, hex: '#0D47A1', name: 'Blue' },
+  { index: 2, hex: '#43A047', name: 'Green' },
+  { index: 3, hex: '#FDD835', name: 'Yellow' },
+  { index: 4, hex: '#FB8C00', name: 'Orange' },
+  { index: 5, hex: '#75118f', name: 'Purple' },
+  { index: 6, hex: '#00CED1', name: 'Aqua' },
+  { index: 7, hex: '#ff19d1', name: 'Pink' },
+  { index: 8, hex: '#6D4C41', name: 'Brown' },
+  { index: 9, hex: '#616161', name: 'Dark Grey' },
+];
+const DIGIT_COLOR_HEX = DIGIT_COLORS.map(c => c.hex);
+const BASIC_COLORS = [
+  { hex: '#FF0000', name: 'Red' },
+  { hex: '#0000FF', name: 'Blue' },
+  { hex: '#00AA00', name: 'Green' },
+  { hex: '#FFCC00', name: 'Yellow' },
+  { hex: '#FF00FF', name: 'Purple' },
+];
+const BASIC_COLOR_HEX = BASIC_COLORS.map(c => c.hex);
+const COLORS = DIGIT_COLORS;
+const COLOR_HEX = DIGIT_COLOR_HEX;
+</script>
+<script>
+// Display current value next to range inputs
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:1px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+<script>
+
+// Sequence generation
+const randomElement = arr => arr[Math.floor(Math.random() * arr.length)];
+const shuffle = arr => {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+const shuffled = array => shuffle(array.slice());
+
+const patterns = [
+  { level: 0, patterns: [[0]] },
+  { level: 1, patterns: [[0, 1]] },
+  { level: 2, patterns: [[0, 1, 2], [0, 1, 1], [0, 0, 1], [1, 1, 0, 0]] },
+  { level: 3, patterns: [[0, 0, 0, 1], [0, 1, 2, 3], [0, 0, 1, 2], [0, 1, 1, 2], [0, 1, 2, 2], [0, 1, 2, 1], [0, 1, 0, 2], [0, 0, 1, 1, 2, 2]] },
+  { level: 4, patterns: [[0, 1, 2, 3, 4], [0, 1, 0, 1, 1], [0, 1, 0, 1, 2], [0, 1, 0, 2, 1], [0, 1, 2, 0, 2], [0, 1, 2, 1, 2], [0, 1, 2, 3, 0], [0, 1, 2, 3, 1], [0, 1, 2, 3, 2], [0, 1, 2, 3, 3]] },
+];
+
+const getRandomPattern = level => {
+  if (level >= patterns.length) return [0];
+  return randomElement(patterns[level].patterns);
+};
+
+const generateSequence = (level, length) => {
+  const pattern = getRandomPattern(level);
+  const sequence = [];
+  for (let i = 0; i < length; i++) {
+    sequence.push(pattern[i % pattern.length]);
+  }
+  return sequence;
+};
+
+// Main app
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'color_sequence_shapes';
+
+// Get number of columns from code length (1-5)
+const getNumColumns = () => Math.min(5, Math.max(1, ($('code').value || '').length || 4));
+
+const DEF = {
+  w: 800, h: 600, code: '1234',
+  level: '2', radius: 0.30, overlap: 0.40,
+  outline: 0.05, outlineColor: '#333333',
+  legendSize: 0.05, minCircles: 13, variance: 0,
+  jitter: 0, shuffleLegend: false,
+  // Group 1 additions
+  shapeType: 'circle', ringMode: false, ringThickness: 0.15,
+  cornerRadius: 1, glowEnabled: false, glowSize: 0.15, glowOpacity: 0.4
+};
+
+// Store current patterns for "new pattern" button
+let currentPatterns = [];
+// Number of circles per column (can vary when variance > 0)
+let columnLengths = [];
+// X-offset jitter per circle per column (values from -1 to 1, scaled by jitter setting)
+let jitterOffsets = [];
+// Shuffled mapping: digitToColor[digit] = colorIndex
+// e.g., if digitToColor[0] = 5, then digit 0 displays as Purple
+let digitToColor = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+// Legend display order (which digit appears in which position)
+let legendOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+function generateColorSequenceForDigit(level, answerDigit, numCircles) {
+  const patternIndices = generateSequence(level, numCircles);
+  const answerPatternIndex = patternIndices[numCircles - 1];
+  const uniqueIndices = [...new Set(patternIndices)];
+  const patternToColor = {};
+  patternToColor[answerPatternIndex] = answerDigit;
+  const availableColors = Array.from({length: 10}, (_, i) => i).filter(c => c !== answerDigit);
+  shuffle(availableColors);
+  let colorIdx = 0;
+  for (const pi of uniqueIndices) {
+    if (pi !== answerPatternIndex) {
+      patternToColor[pi] = availableColors[colorIdx++];
+    }
+  }
+  return patternIndices.map(pi => patternToColor[pi]);
+}
+
+function regeneratePatterns() {
+  const codeStr = $('code').value || '1234';
+  const numColumns = getNumColumns();
+  const digitsArr = codeStr.padEnd(numColumns, '0').slice(0, numColumns).split('').map(Number);
+  const level = +$('level').value;
+  const minCircles = +$('minCircles').value;
+  const variance = +$('variance').value;
+  columnLengths = digitsArr.map(() => minCircles + Math.floor(Math.random() * (variance + 1)));
+  currentPatterns = digitsArr.map((digit, i) => generateColorSequenceForDigit(level, digit, columnLengths[i]));
+  jitterOffsets = columnLengths.map(len =>
+    Array.from({length: len}, () => Math.random() * 2 - 1)
+  );
+  digitToColor = shuffled([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  if ($('shuffleLegend').checked) {
+    legendOrder = shuffled([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  } else {
+    legendOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  }
+}
+
+// Shape drawing functions
+function drawShape(ctx, shapeType, x, y, radius, cornerRadius, fill = true) {
+  const cr = cornerRadius;
+  ctx.beginPath();
+
+  switch (shapeType) {
+    case 'circle':
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      break;
+
+    case 'square':
+      if (cr >= 1) {
+        // Full round = circle
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+      } else if (cr <= 0) {
+        // Sharp square
+        ctx.rect(x - radius, y - radius, radius * 2, radius * 2);
+      } else {
+        // Rounded square
+        const r = radius * cr * 0.5;
+        const s = radius;
+        ctx.moveTo(x - s + r, y - s);
+        ctx.lineTo(x + s - r, y - s);
+        ctx.quadraticCurveTo(x + s, y - s, x + s, y - s + r);
+        ctx.lineTo(x + s, y + s - r);
+        ctx.quadraticCurveTo(x + s, y + s, x + s - r, y + s);
+        ctx.lineTo(x - s + r, y + s);
+        ctx.quadraticCurveTo(x - s, y + s, x - s, y + s - r);
+        ctx.lineTo(x - s, y - s + r);
+        ctx.quadraticCurveTo(x - s, y - s, x - s + r, y - s);
+      }
+      break;
+
+    case 'triangle':
+      const h = radius * 1.15; // Adjust for visual balance
+      ctx.moveTo(x, y - h);
+      ctx.lineTo(x + h * 0.866, y + h * 0.5);
+      ctx.lineTo(x - h * 0.866, y + h * 0.5);
+      ctx.closePath();
+      break;
+
+    case 'hexagon':
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 2;
+        const px = x + radius * Math.cos(angle);
+        const py = y + radius * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
+
+    case 'star':
+      const outerR = radius;
+      const innerR = radius * 0.4;
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (Math.PI / 5) * i - Math.PI / 2;
+        const px = x + r * Math.cos(angle);
+        const py = y + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
+  }
+}
+
+function lightenColor(hex, percent) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, (num >> 16) + Math.floor((255 - (num >> 16)) * percent));
+  const g = Math.min(255, ((num >> 8) & 0x00FF) + Math.floor((255 - ((num >> 8) & 0x00FF)) * percent));
+  const b = Math.min(255, (num & 0x0000FF) + Math.floor((255 - (num & 0x0000FF)) * percent));
+  return `rgb(${r},${g},${b})`;
+}
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+
+  if (currentPatterns.length === 0) {
+    regeneratePatterns();
+  }
+
+  const shapeType = $('shapeType').value;
+  const ringMode = $('ringMode').checked;
+  const ringThickness = +$('ringThickness').value;
+  const cornerRadius = +$('cornerRadius').value;
+  const glowEnabled = $('glowEnabled').checked;
+  const glowSize = +$('glowSize').value;
+  const glowOpacity = +$('glowOpacity').value;
+
+  const legendCircleSize = +$('legendSize').value * H;
+  const legendHeight = legendCircleSize * 3;
+  const legendY = legendCircleSize * 1.2;
+
+  // Draw legend at top
+  const legendStartX = W * 0.05;
+  const legendEndX = W * 0.95;
+  const legendSpacing = (legendEndX - legendStartX) / 10;
+
+  ctx.font = `bold ${legendCircleSize * 0.8}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i < 10; i++) {
+    const digit = legendOrder[i];
+    const x = legendStartX + legendSpacing * i + legendSpacing / 2;
+    const color = COLOR_HEX[digitToColor[digit]];
+
+    // Draw shape
+    drawShape(ctx, shapeType, x, legendY, legendCircleSize / 2, cornerRadius);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = $('outlineColor').value;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Draw digit below
+    ctx.fillStyle = '#000';
+    ctx.fillText(digit.toString(), x, legendY + legendCircleSize);
+  }
+
+  // Draw separator line
+  const separatorY = legendY + legendCircleSize * 1.7;
+  ctx.beginPath();
+  ctx.moveTo(W * 0.02, separatorY);
+  ctx.lineTo(W * 0.98, separatorY);
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Calculate shape area
+  const circleAreaTop = separatorY + 10;
+  const circleAreaHeight = H - circleAreaTop - 10;
+  const numColumns = getNumColumns();
+  const sceneWidth = W / numColumns;
+
+  const radiusFactor = +$('radius').value;
+  const overlapFactor = +$('overlap').value;
+  const outlineFactor = +$('outline').value;
+  const jitterFactor = +$('jitter').value;
+
+  // For each column (scene)
+  for (let scene = 0; scene < numColumns; scene++) {
+    const colorSequence = currentPatterns[scene];
+    if (!colorSequence) continue;
+
+    const numCircles = columnLengths[scene];
+    const baseCenterX = sceneWidth * scene + sceneWidth / 2;
+    const radius = sceneWidth * radiusFactor / 2;
+    const diameter = radius * 2;
+    const verticalStep = diameter * (1 - overlapFactor);
+
+    const totalHeight = diameter + (numCircles - 1) * verticalStep;
+    const startY = circleAreaTop + (circleAreaHeight - totalHeight) / 2 + radius;
+
+    // Draw shapes from top to bottom
+    for (let i = 0; i < numCircles; i++) {
+      const y = startY + i * verticalStep;
+      const isAnswer = (i === numCircles - 1);
+      const xOffset = jitterOffsets[scene]?.[i] * radius * jitterFactor || 0;
+      const centerX = baseCenterX + xOffset;
+      const color = isAnswer ? '#fff' : COLOR_HEX[digitToColor[colorSequence[i]]];
+
+      // Draw glow effect if enabled
+      if (glowEnabled && !isAnswer) {
+        ctx.save();
+        ctx.shadowColor = lightenColor(color, 0.3);
+        ctx.shadowBlur = radius * glowSize * 3;
+        ctx.globalAlpha = glowOpacity;
+        drawShape(ctx, shapeType, centerX, y, radius, cornerRadius);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Draw main shape
+      drawShape(ctx, shapeType, centerX, y, radius, cornerRadius);
+
+      if (ringMode && !isAnswer) {
+        // Ring mode: stroke only
+        ctx.strokeStyle = color;
+        ctx.lineWidth = radius * ringThickness;
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        if (outlineFactor > 0 || isAnswer) {
+          ctx.strokeStyle = $('outlineColor').value;
+          ctx.lineWidth = radius * outlineFactor;
+          ctx.stroke();
+        }
+      }
+
+      if (isAnswer) {
+        // Draw question mark
+        ctx.fillStyle = '#666';
+        ctx.font = `bold ${radius}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('?', centerX, y);
+      }
+    }
+  }
+}
+
+// Event handlers
+function randCode() {
+  const numDigits = getNumColumns();
+  const max = Math.pow(10, numDigits);
+  $('code').value = (Math.random() * max | 0).toString().padStart(numDigits, '0');
+  regeneratePatterns();
+}
+
+document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { if(b.dataset.t==='code'){ randCode(); draw(); } });
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = DEF[k];
+    else el.value = DEF[k];
+  }
+  // Update range display spans
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if (span && span.tagName === 'SPAN') span.textContent = r.value;
+  });
+  regeneratePatterns();
+  draw();
+};
+
+$('newPattern').onclick = () => {
+  regeneratePatterns();
+  draw();
+};
+
+// Regenerate patterns when code, level, or circle count changes
+$('code').oninput = () => { regeneratePatterns(); draw(); };
+$('level').onchange = () => { regeneratePatterns(); draw(); };
+$('minCircles').oninput = () => { regeneratePatterns(); draw(); };
+$('variance').oninput = () => { regeneratePatterns(); draw(); };
+$('shuffleLegend').onchange = () => { regeneratePatterns(); draw(); };
+
+// General input handler for other controls
+document.querySelectorAll('input[type=range], input[type=color], input[type=checkbox], select').forEach(el => {
+  el.oninput = draw;
+  el.onchange = draw;
+});
+
+// Download
+$('can').onclick = () => {
+  const numColumns = getNumColumns();
+  const c = ($('code').value || '0').padEnd(numColumns, '0').slice(0, numColumns);
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode(); draw();
+};
+
+// Initial draw
+regeneratePatterns();
+draw();
+</script>
