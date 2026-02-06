@@ -25,13 +25,23 @@
 <hr>
 
 <!-- === visual settings === -->
+<label>Question style
+  <select id=questionStyle>
+    <option value="visual" selected>Visual (● – ?)</option>
+    <option value="text">Text</option>
+  </select>
+</label><br>
+
 <label>Number of labels
   <input id=labelCount type=range min=10 max=50 step=1 value=20>
-  <span id=labelCountVal>20</span>
+</label><br>
+
+<label>Target color count
+  <input id=targetColorCount type=range min=2 max=10 step=1 value=5>
 </label><br>
 
 <label>Label size (% of height)
-  <input id=labelSize type=range min=5 max=20 step=1 value=10>
+  <input id=labelSize type=range min=3 max=15 step=1 value=8>
 </label><br>
 
 <label>Rotation variance (degrees)
@@ -43,42 +53,17 @@
 </label><br>
 
 <button id=reset type=button>🔄 Restore defaults</button>
+<button id=rerender type=button>🔁 Re-render</button>
 
 <hr>
 
 <canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
 
 <script>
-// Color definitions for digit-to-color mapping puzzles
-const DIGIT_COLORS = [
-  { index: 0, hex: '#d40808', name: 'Red' },
-  { index: 1, hex: '#0D47A1', name: 'Blue' },
-  { index: 2, hex: '#43A047', name: 'Green' },
-  { index: 3, hex: '#FDD835', name: 'Yellow' },
-  { index: 4, hex: '#FB8C00', name: 'Orange' },
-  { index: 5, hex: '#75118f', name: 'Purple' },
-  { index: 6, hex: '#00CED1', name: 'Aqua' },
-  { index: 7, hex: '#ff19d1', name: 'Pink' },
-  { index: 8, hex: '#6D4C41', name: 'Brown' },
-  { index: 9, hex: '#616161', name: 'Dark Grey' },
-];
-const DIGIT_COLOR_HEX = DIGIT_COLORS.map(c => c.hex);
-const BASIC_COLORS = [
-  { hex: '#FF0000', name: 'Red' },
-  { hex: '#0000FF', name: 'Blue' },
-  { hex: '#00AA00', name: 'Green' },
-  { hex: '#FFCC00', name: 'Yellow' },
-  { hex: '#FF00FF', name: 'Purple' },
-];
-const BASIC_COLOR_HEX = BASIC_COLORS.map(c => c.hex);
-const COLORS = DIGIT_COLORS;
-const COLOR_HEX = DIGIT_COLOR_HEX;
-</script>
-<script>
 // Display current value next to range inputs
 document.querySelectorAll('input[type=range]').forEach(r => {
   const span = document.createElement('span');
-  span.style.cssText = 'margin-left:1px;font-size:12px;color:#666';
+  span.style.cssText = 'margin-left:4px;font-size:12px;color:#666';
   span.textContent = r.value;
   r.after(span);
   r.addEventListener('input', () => span.textContent = r.value);
@@ -90,7 +75,16 @@ const $ = id => document.getElementById(id);
 const ctx = $('can').getContext('2d');
 const NAME = 'label_haystack_color';
 
-// Populate color dropdown using BASIC_COLORS (pure, recognizable colors)
+const BASIC_COLORS = [
+  { hex: '#E00000', name: 'Red' },
+  { hex: '#0000DD', name: 'Blue' },
+  { hex: '#008800', name: 'Green' },
+  { hex: '#CC9900', name: 'Yellow' },
+  { hex: '#CC00CC', name: 'Purple' },
+];
+const BASIC_COLOR_HEX = BASIC_COLORS.map(c => c.hex);
+
+// Populate color dropdown
 BASIC_COLORS.forEach((c, i) => {
   const opt = document.createElement('option');
   opt.value = i;
@@ -100,15 +94,14 @@ BASIC_COLORS.forEach((c, i) => {
 
 const DEF = {
   w: 800, h: 600, code: '1234',
-  targetColor: 'random', labelCount: 20,
-  labelSize: 10, rotation: 15, jitter: 20
+  targetColor: 'random', labelCount: 20, targetColorCount: 5,
+  labelSize: 8, rotation: 15, jitter: 20, questionStyle: 'visual'
 };
 
 // State
 let currentColorIndex = 0;
-let labels = []; // { value, x, y, rotation, colorIndex, isAnswer }
+let labels = [];
 
-const randomElement = arr => arr[Math.floor(Math.random() * arr.length)];
 const shuffle = arr => {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -129,61 +122,96 @@ function selectColor() {
 
 function generateRandomCode(length) {
   let code = '';
-  for (let i = 0; i < length; i++) {
-    code += Math.floor(Math.random() * 10);
-  }
+  for (let i = 0; i < length; i++) code += Math.floor(Math.random() * 10);
   return code;
+}
+
+function getRotatedBBox(textW, textH, angle) {
+  const cos = Math.abs(Math.cos(angle));
+  const sin = Math.abs(Math.sin(angle));
+  return {
+    w: textW * cos + textH * sin,
+    h: textW * sin + textH * cos
+  };
 }
 
 function generateLabels() {
   const codeStr = $('code').value || '1234';
   const numLabels = +$('labelCount').value;
+  const targetCount = Math.min(+$('targetColorCount').value, Math.floor(numLabels / 2));
   const jitterPct = +$('jitter').value / 100;
   const rotationVar = +$('rotation').value;
   const W = +$('w').value;
   const H = +$('h').value;
+  const isVisual = $('questionStyle').value === 'visual';
 
-  const ruleAreaHeight = H * 0.12;
-  const areaTop = ruleAreaHeight + 10;
-  const areaHeight = H - areaTop - 10;
-  const areaWidth = W - 20;
+  const labelSizePct = +$('labelSize').value / 100;
+  const fontSize = H * labelSizePct;
 
-  // Calculate grid
-  const cols = Math.ceil(Math.sqrt(numLabels * (areaWidth / areaHeight)));
-  const rows = Math.ceil(numLabels / cols);
+  // Reserve space for question area
+  const questionHeight = isVisual ? H * 0.10 : 0;
+  const ruleHeight = isVisual ? 0 : H * 0.12;
+  const margin = Math.max(W, H) * 0.03;
+
+  const areaTop = ruleHeight > 0 ? ruleHeight + margin * 0.5 : margin;
+  const areaBottom = H - (isVisual ? questionHeight + margin * 0.3 : margin);
+  const areaLeft = margin;
+  const areaRight = W - margin;
+  const areaWidth = areaRight - areaLeft;
+  const areaHeight = areaBottom - areaTop;
+
+  // Estimate max label bounding box for grid sizing
+  // Use a rough estimate: 4-digit code ~ 4 * 0.6 * fontSize wide, fontSize tall
+  const estTextW = codeStr.length * fontSize * 0.65;
+  const maxAngle = rotationVar * Math.PI / 180;
+  const maxBBox = getRotatedBBox(estTextW, fontSize, maxAngle);
+
+  // Calculate grid so each cell fits the max label bounding box
+  const cols = Math.max(1, Math.floor(areaWidth / (maxBBox.w * 1.15)));
+  const rows = Math.max(1, Math.ceil(numLabels / cols));
   const cellW = areaWidth / cols;
   const cellH = areaHeight / rows;
 
-  // Generate grid positions
+  // Generate grid positions with jitter and edge clamping
+  const halfLabelW = maxBBox.w / 2 + 2;
+  const halfLabelH = maxBBox.h / 2 + 2;
   const positions = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const baseX = 10 + c * cellW + cellW / 2;
+      const baseX = areaLeft + c * cellW + cellW / 2;
       const baseY = areaTop + r * cellH + cellH / 2;
-      const jitterX = (Math.random() - 0.5) * cellW * jitterPct;
-      const jitterY = (Math.random() - 0.5) * cellH * jitterPct;
-      positions.push({ x: baseX + jitterX, y: baseY + jitterY });
+
+      // Reduce jitter for edge cells
+      const edgeFactorX = Math.min(1, Math.min(c, cols - 1 - c) / 1.5 + 0.3);
+      const edgeFactorY = Math.min(1, Math.min(r, rows - 1 - r) / 1.5 + 0.3);
+      const jX = (Math.random() - 0.5) * cellW * jitterPct * edgeFactorX;
+      const jY = (Math.random() - 0.5) * cellH * jitterPct * edgeFactorY;
+
+      // Clamp to keep label fully inside canvas
+      let x = baseX + jX;
+      let y = baseY + jY;
+      x = Math.max(halfLabelW, Math.min(W - halfLabelW, x));
+      y = Math.max(areaTop + halfLabelH, Math.min(areaBottom - halfLabelH, y));
+
+      positions.push({ x, y });
     }
   }
   shuffle(positions);
 
-  // Generate distractor values (different from answer)
+  // Generate distractor codes (all unique, different from answer)
   const distractorValues = new Set();
   while (distractorValues.size < numLabels - 1) {
     const val = generateRandomCode(codeStr.length);
-    if (val !== codeStr) {
-      distractorValues.add(val);
-    }
+    if (val !== codeStr) distractorValues.add(val);
   }
   const distractors = Array.from(distractorValues);
 
-  // Get non-target colors
+  // Non-target colors, distributed evenly by cycling
   const otherColors = BASIC_COLORS.map((_, i) => i).filter(i => i !== currentColorIndex);
 
-  // Create labels array
   labels = [];
 
-  // Answer label
+  // 1 answer label (target color, correct code)
   labels.push({
     value: codeStr,
     x: positions[0].x,
@@ -193,14 +221,26 @@ function generateLabels() {
     isAnswer: true
   });
 
-  // Distractor labels
-  for (let i = 0; i < Math.min(distractors.length, numLabels - 1); i++) {
+  // (targetCount - 1) decoy labels in target color, wrong codes
+  for (let i = 1; i < targetCount; i++) {
     labels.push({
-      value: distractors[i],
-      x: positions[i + 1].x,
-      y: positions[i + 1].y,
+      value: distractors[i - 1],
+      x: positions[i].x,
+      y: positions[i].y,
       rotation: (Math.random() - 0.5) * 2 * rotationVar * Math.PI / 180,
-      colorIndex: randomElement(otherColors),
+      colorIndex: currentColorIndex,
+      isAnswer: false
+    });
+  }
+
+  // Remaining labels use non-target colors, cycled evenly
+  for (let i = targetCount; i < Math.min(numLabels, positions.length); i++) {
+    labels.push({
+      value: distractors[i - 1],
+      x: positions[i].x,
+      y: positions[i].y,
+      rotation: (Math.random() - 0.5) * 2 * rotationVar * Math.PI / 180,
+      colorIndex: otherColors[(i - targetCount) % otherColors.length],
       isAnswer: false
     });
   }
@@ -215,28 +255,31 @@ function draw() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
 
-  if (labels.length === 0) {
-    generateLabels();
-  }
+  if (labels.length === 0) generateLabels();
 
   const labelSizePct = +$('labelSize').value / 100;
   const fontSize = H * labelSizePct;
-  const ruleAreaHeight = H * 0.12;
+  const isVisual = $('questionStyle').value === 'visual';
 
-  // Draw rule text
-  ctx.fillStyle = '#333';
-  ctx.font = `bold ${ruleAreaHeight * 0.6}px system-ui, -apple-system, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`Find the ${BASIC_COLORS[currentColorIndex].name.toUpperCase()} number`, W / 2, ruleAreaHeight / 2);
-
-  // Draw separator
-  ctx.beginPath();
-  ctx.moveTo(W * 0.05, ruleAreaHeight);
-  ctx.lineTo(W * 0.95, ruleAreaHeight);
-  ctx.strokeStyle = '#ccc';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  if (!isVisual) {
+    // Text mode: draw rule text at top
+    const ruleAreaHeight = H * 0.12;
+    ctx.fillStyle = '#333';
+    ctx.font = `bold ${ruleAreaHeight * 0.5}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+      `Find the ${BASIC_COLORS[currentColorIndex].name.toUpperCase()} number`,
+      W / 2, ruleAreaHeight / 2
+    );
+    // Separator
+    ctx.beginPath();
+    ctx.moveTo(W * 0.05, ruleAreaHeight);
+    ctx.lineTo(W * 0.95, ruleAreaHeight);
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
 
   // Draw labels
   ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
@@ -252,7 +295,45 @@ function draw() {
     ctx.restore();
   }
 
-  $('labelCountVal').textContent = $('labelCount').value;
+  if (isVisual) {
+    // Visual mode: draw "(colored circle) – ?" at the bottom
+    const qHeight = H * 0.10;
+    const qY = H - qHeight / 2;
+    const circleR = qHeight * 0.28;
+    const dashGap = circleR * 1.2;
+    const qFontSize = qHeight * 0.45;
+
+    // Measure to center the whole thing: circle + gap + dash + gap + ?
+    ctx.font = `bold ${qFontSize}px system-ui, -apple-system, sans-serif`;
+    const dashW = ctx.measureText('–').width;
+    const qW = ctx.measureText('?').width;
+    const totalW = circleR * 2 + dashGap + dashW + dashGap + qW;
+    const startX = W / 2 - totalW / 2 + circleR;
+
+    // Separator above question area
+    const sepY = H - qHeight - 2;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.1, sepY);
+    ctx.lineTo(W * 0.9, sepY);
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Colored circle
+    ctx.beginPath();
+    ctx.arc(startX, qY, circleR, 0, Math.PI * 2);
+    ctx.fillStyle = BASIC_COLOR_HEX[currentColorIndex];
+    ctx.fill();
+
+    // Dash
+    ctx.fillStyle = '#555';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('–', startX + circleR + dashGap * 0.3, qY);
+
+    // Question mark
+    ctx.fillText('?', startX + circleR + dashGap * 0.3 + dashW + dashGap * 0.5, qY);
+  }
 }
 
 // Event handlers
@@ -268,17 +349,8 @@ document.querySelectorAll('[data-t]').forEach(b => {
   };
 });
 
-$('newRule').onclick = () => {
-  selectColor();
-  generateLabels();
-  draw();
-};
-
-$('targetColor').onchange = () => {
-  selectColor();
-  generateLabels();
-  draw();
-};
+$('newRule').onclick = () => { selectColor(); generateLabels(); draw(); };
+$('targetColor').onchange = () => { selectColor(); generateLabels(); draw(); };
 
 $('reset').onclick = () => {
   for (const k in DEF) {
@@ -286,16 +358,27 @@ $('reset').onclick = () => {
     if (!el) continue;
     el.value = DEF[k];
   }
+  // Update range display spans
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if (span && span.tagName === 'SPAN') span.textContent = r.value;
+  });
   selectColor();
   generateLabels();
   draw();
 };
 
+$('rerender').onclick = () => { generateLabels(); draw(); };
+
 $('code').oninput = () => { generateLabels(); draw(); };
 $('labelCount').oninput = () => { generateLabels(); draw(); };
+$('targetColorCount').oninput = () => { generateLabels(); draw(); };
 $('jitter').oninput = () => { generateLabels(); draw(); };
 $('rotation').oninput = () => { generateLabels(); draw(); };
-$('labelSize').oninput = draw;
+$('labelSize').oninput = () => { generateLabels(); draw(); };
+$('questionStyle').onchange = () => { generateLabels(); draw(); };
+$('w').oninput = () => { generateLabels(); draw(); };
+$('h').oninput = () => { generateLabels(); draw(); };
 
 // Download
 $('can').onclick = () => {
