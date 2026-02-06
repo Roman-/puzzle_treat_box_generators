@@ -52,6 +52,27 @@
   </select>
 </label><br>
 
+<label>Badge shape
+  <select id=badgeShape>
+    <option value="circle" selected>circle</option>
+    <option value="square">square</option>
+    <option value="hexagon">hexagon</option>
+    <option value="star">star</option>
+    <option value="heart">heart</option>
+  </select>
+</label><br>
+
+<label>Drop shadow <input id=shadow type=checkbox></label><br>
+<label>Shadow blur
+  <input id=shadowBlur type=range min=1 max=20 value=6>
+</label><br>
+
+<label>Area split (% emoji)
+  <input id=areaSplit type=range min=60 max=85 value=75>
+</label><br>
+
+<label>Dot mode <input id=dotMode type=checkbox></label><br>
+
 <hr>
 
 <button id=reset type=button>Restore defaults</button>
@@ -221,7 +242,9 @@ const NAME = 'emoji_word_match_v2';
 const DEF = {
   w: 800, h: 600, code: '1234',
   distractors: 14, emojiSize: 12, badgeSize: 60,
-  rotation: 10, jitter: 20, category: 'all', lang: 'en'
+  rotation: 10, jitter: 20, category: 'all', lang: 'en',
+  badgeShape: 'circle', shadow: false, shadowBlur: 6,
+  areaSplit: 75, dotMode: false
 };
 
 const BADGE_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA', '#00ACC1'];
@@ -234,6 +257,80 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+// Dot patterns for die face mode (digits 0-9)
+const DOT_PATTERNS = {
+  0: [],
+  1: [[0, 0]],
+  2: [[-0.45, -0.45], [0.45, 0.45]],
+  3: [[-0.45, -0.45], [0, 0], [0.45, 0.45]],
+  4: [[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]],
+  5: [[-0.45, -0.45], [0.45, -0.45], [0, 0], [-0.45, 0.45], [0.45, 0.45]],
+  6: [[-0.45, -0.5], [-0.45, 0], [-0.45, 0.5], [0.45, -0.5], [0.45, 0], [0.45, 0.5]],
+  7: [[-0.45, -0.5], [-0.45, 0], [-0.45, 0.5], [0, 0], [0.45, -0.5], [0.45, 0], [0.45, 0.5]],
+  8: [[-0.45, -0.5], [-0.45, 0], [-0.45, 0.5], [0, -0.5], [0, 0.5], [0.45, -0.5], [0.45, 0], [0.45, 0.5]],
+  9: [[-0.45, -0.5], [-0.45, 0], [-0.45, 0.5], [0, -0.5], [0, 0], [0, 0.5], [0.45, -0.5], [0.45, 0], [0.45, 0.5]]
+};
+
+// Badge shape drawing functions
+function drawBadgeShape(shape, bx, by, r) {
+  ctx.beginPath();
+  switch (shape) {
+    case 'circle':
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      break;
+    case 'square':
+      ctx.rect(bx - r, by - r, r * 2, r * 2);
+      break;
+    case 'hexagon': {
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 2;
+        const px = bx + r * Math.cos(angle);
+        const py = by + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
+    }
+    case 'star': {
+      const outerR = r;
+      const innerR = r * 0.45;
+      for (let i = 0; i < 10; i++) {
+        const angle = (Math.PI / 5) * i - Math.PI / 2;
+        const rad = i % 2 === 0 ? outerR : innerR;
+        const px = bx + rad * Math.cos(angle);
+        const py = by + rad * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
+    }
+    case 'heart': {
+      const topY = by - r * 0.4;
+      ctx.moveTo(bx, by + r * 0.75);
+      ctx.bezierCurveTo(bx - r * 1.3, by - r * 0.1, bx - r * 0.7, topY - r * 0.8, bx, topY);
+      ctx.bezierCurveTo(bx + r * 0.7, topY - r * 0.8, bx + r * 1.3, by - r * 0.1, bx, by + r * 0.75);
+      ctx.closePath();
+      break;
+    }
+    default:
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      break;
+  }
+}
+
+function drawDotPattern(digit, bx, by, badgeR) {
+  const pattern = DOT_PATTERNS[digit] || [];
+  const dotR = badgeR * 0.12;
+  ctx.fillStyle = '#fff';
+  for (const [ox, oy] of pattern) {
+    ctx.beginPath();
+    ctx.arc(bx + ox * badgeR, by + oy * badgeR, dotR, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 // State
@@ -279,7 +376,8 @@ function regenerate() {
 
   // Compute grid positions with jitter
   const W = +$('w').value, H = +$('h').value;
-  const mainH = H * 0.75;
+  const splitPct = +$('areaSplit').value / 100;
+  const mainH = H * splitPct;
   const jitterPct = +$('jitter').value / 100;
   const rotMax = +$('rotation').value;
   const total = shuffled.length;
@@ -343,9 +441,14 @@ function draw() {
   const emojiPx = H * emojiSizePct;
   const badgePct = +$('badgeSize').value / 100;
   const badgeR = emojiPx * badgePct * 0.5;
+  const useDotMode = $('dotMode').checked;
+  const badgeShape = $('badgeShape').value;
+  const shadowOn = $('shadow').checked;
+  const shadowBlurVal = +$('shadowBlur').value;
 
-  const mainH = H * 0.75;
-  const bottomH = H * 0.25;
+  const splitPct = +$('areaSplit').value / 100;
+  const mainH = H * splitPct;
+  const bottomH = H * (1 - splitPct);
   const bottomY = mainH;
 
   // Draw main area emojis
@@ -357,29 +460,46 @@ function draw() {
     ctx.translate(item.x, item.y);
     ctx.rotate(item.angle);
 
+    // Apply drop shadow if enabled
+    if (shadowOn) {
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = shadowBlurVal;
+      ctx.shadowOffsetX = 3;
+      ctx.shadowOffsetY = 3;
+    }
+
     // Draw emoji
     ctx.font = emojiPx + 'px sans-serif';
     ctx.fillText(item.emoji, 0, 0);
+
+    // Reset shadow before drawing badge
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
 
     // Draw badge at top-right of emoji
     const bx = emojiPx * 0.4;
     const by = -emojiPx * 0.35;
     const badgeColor = BADGE_COLORS[(sceneItems.indexOf(item)) % BADGE_COLORS.length];
 
-    ctx.beginPath();
-    ctx.arc(bx, by, badgeR, 0, Math.PI * 2);
+    drawBadgeShape(badgeShape, bx, by, badgeR);
     ctx.fillStyle = badgeColor;
     ctx.fill();
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = Math.max(1, badgeR * 0.15);
     ctx.stroke();
 
-    // Digit in badge
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold ' + (badgeR * 1.3) + 'px sans-serif';
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
-    ctx.fillText(item.digit.toString(), bx, by);
+    // Digit in badge (numeral or dot pattern)
+    if (useDotMode) {
+      drawDotPattern(item.digit, bx, by, badgeR);
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold ' + (badgeR * 1.3) + 'px sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.fillText(item.digit.toString(), bx, by);
+    }
 
     ctx.restore();
   }
@@ -459,6 +579,9 @@ $('code').oninput = () => { regenerate(); draw(); };
 $('distractors').oninput = () => { regenerate(); draw(); };
 $('category').onchange = () => { regenerate(); draw(); };
 $('lang').onchange = () => { regenerate(); draw(); };
+$('badgeShape').onchange = () => { draw(); };
+$('shadow').onchange = () => { draw(); };
+$('dotMode').onchange = () => { draw(); };
 
 document.querySelectorAll('input[type=range]').forEach(el => {
   const id = el.id;
@@ -474,7 +597,11 @@ $('reset').onclick = () => {
   for (const k in DEF) {
     const el = $(k);
     if (!el) continue;
-    el.value = DEF[k];
+    if (el.type === 'checkbox') {
+      el.checked = DEF[k];
+    } else {
+      el.value = DEF[k];
+    }
   }
   document.querySelectorAll('input[type=range]').forEach(r => {
     const span = r.nextElementSibling;
