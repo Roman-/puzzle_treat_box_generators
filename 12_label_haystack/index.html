@@ -68,31 +68,22 @@ const $ = id => document.getElementById(id);
 const ctx = $('can').getContext('2d');
 const NAME = 'label_haystack_color';
 
-// Colors for answer digits (up to 5 digits = 5 colors)
-const DIGIT_COLORS = [
-  '#E00000', // Red
-  '#0000DD', // Blue
-  '#008800', // Green
-  '#DDAA00', // Yellow (adjusted for clarity)
-  '#CC00CC', // Purple
+// 10 maximally-distinct colors (from shared/colors.js)
+const ALL_COLORS = [
+  '#d40808', // Red
+  '#0D47A1', // Blue
+  '#43A047', // Green
+  '#FDD835', // Yellow
+  '#FB8C00', // Orange
+  '#75118f', // Purple
+  '#00CED1', // Aqua
+  '#ff19d1', // Pink
+  '#6D4C41', // Brown
+  '#616161', // Dark Grey
 ];
 
-// Grey for distractors
+// Grey for non-colored distractors
 const DISTRACTOR_COLOR = '#AAAAAA';
-
-// Extra colors for colored distractors (visually distinct from DIGIT_COLORS)
-const DISTRACTOR_PALETTE = [
-  '#FF8800', // Orange
-  '#00BBBB', // Teal
-  '#8855DD', // Violet
-  '#BB5577', // Rose
-  '#558833', // Olive
-  '#AA7744', // Brown
-  '#6688CC', // Steel blue
-  '#CC6699', // Pink
-  '#44AA99', // Seafoam
-  '#887766', // Taupe
-];
 
 const DEF = {
   w: 800, h: 600, code: '1234',
@@ -104,6 +95,7 @@ const DEF = {
 };
 
 let labels = [];
+let answerColors = [];
 
 const shuffle = arr => {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -192,6 +184,11 @@ function generateLabels() {
   const lettersEnabled = $('useLetters').checked;
   const letRatio = +$('letterRatio').value / 100;
 
+  // Split color pool: pick N colors for answers (shuffled), rest for colored distractors
+  const shuffledColors = shuffle([...ALL_COLORS]);
+  answerColors = shuffledColors.slice(0, digits.length);
+  const distractorColors = shuffledColors.slice(digits.length);
+
   // Answer labels: one per digit, each with a unique color
   for (let i = 0; i < digits.length; i++) {
     labels.push({
@@ -199,7 +196,7 @@ function generateLabels() {
       x: positions[i].x,
       y: positions[i].y,
       rotation: (Math.random() - 0.5) * 2 * rotationVar * Math.PI / 180,
-      color: DIGIT_COLORS[i],
+      color: answerColors[i],
       isAnswer: true,
       opacity: 1
     });
@@ -211,7 +208,7 @@ function generateLabels() {
   for (let i = 0; i < numDistractors; i++) {
     let color = DISTRACTOR_COLOR;
     if (useColoredDistractors) {
-      color = DISTRACTOR_PALETTE[Math.floor(Math.random() * DISTRACTOR_PALETTE.length)];
+      color = distractorColors[Math.floor(Math.random() * distractorColors.length)];
     }
 
     // Letter distractors
@@ -312,7 +309,7 @@ function draw() {
     // Colored circle
     ctx.beginPath();
     ctx.arc(gx, qY - circleR * 0.6, circleR, 0, Math.PI * 2);
-    ctx.fillStyle = DIGIT_COLORS[i];
+    ctx.fillStyle = answerColors[i];
     ctx.fill();
 
     // Question mark below circle
