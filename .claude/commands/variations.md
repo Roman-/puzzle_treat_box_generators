@@ -23,3 +23,6 @@ Discard them, leaving only 12 remaining ideas. Split those into 3 groups of 4 id
 
 For each group, then copy-paste the puzzle's main index.html page file 3 times: index_group1.html, index_group2.html, index_group3.html.
 Implement the three groups of features on top of each file created.
+
+# Clean up
+delete files from planning/*.md

@@ -11,3 +11,6 @@ Then create planning/issues_resolution.md (delete previous if exists), in which 
 This may require things from simple local tweaks to rethinking the puzzle mechanics from scratch. Write all of the ideas in this document that can lead to improving the puzzle and mitigating the issues described, preventing them from appearing in the future. Write at least 15 proposals and solutions of different degree of simplicity and creativity.
 Finally, create planning/issues_final_resolution.md, where you get the best proposals that solve all of the issues described, and potentially can solve other derived issues.
 Then implement planning/issues_final_resolution.md.
+
+## clean up
+Delete .md files from planning/*.md
