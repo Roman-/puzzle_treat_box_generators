@@ -9,3 +9,4 @@ A raw idea is provided in this prompt. Build around it to create the 3 variation
 - Look at each planning/interpretation_X.md individually. Argue with everything described in it, providing a comprehensive proof that the puzzle description written in it will contradict the guidelines. Output the result in planning/interpretation_critique_X.md
 - Look at each planning/interpretation_critique_X.md. Based on it, come up with improved comprehensive plan for a puzzle. Write it in planning/final_plan_X.md.
 - For each planning/final_plan_X.md, create a separate html/js page in puzzle root directory, named: index_v1.html, index_v2.html, index_v3.html
+- remove planning/*.md to clean up
