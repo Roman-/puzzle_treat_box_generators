@@ -1,6 +1,7 @@
 A raw idea is provided in this prompt. Build around it to create the 3 variations of the new puzzle.
 
 ## steps to follow
+- See README.md and explore what's available in the shared/ directory.
 - Create the new (next) directory, e.g. 42_puzzle_name
 - Create `planning` subdirectory: 42_puzzle_name/planning
 - Create planning/initial_description.md with the initial description of the puzzle from user input.
