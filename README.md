@@ -40,7 +40,7 @@ Click any image below to explore the generator and example output. All examples 
 # Puzzle guidelines
 - Instant affordance: By visual inspection alone, it should be obvious what action to perform to extract each digit.
 - Creative > academic: Should feel like a visual riddle or toy, not school math.
-- Minimal or no text: Prefer zero text. If unavoidable, use the absolute minimum and place it unobtrusively.
+- Minimal or no text: Prefer zero text, unless the puzzle is explicitly reading-based. If unavoidable, use the absolute minimum and place it unobtrusively.
 - Visual clarity: High contrast, clean shapes, no visual noise. Readable when printed.
 - Color-friendly: Designed for color printing; colors must be distinguishable and meaningful.
 - Unambiguous digits: Each digit must decode to exactly one value—no alternative interpretations.
