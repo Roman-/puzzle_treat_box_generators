@@ -1,0 +1,307 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Wire Bends – generator</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=1000 min=50></label>
+<label>H <input id=h type=number value=400 min=50></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{3,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Wire thickness
+  <input id=thick type=range min=0.03 max=0.15 step=0.01 value=0.08>
+</label><br>
+
+<label>Padding
+  <input id=padding type=range min=0.05 max=0.25 step=0.01 value=0.12>
+</label><br>
+
+<label>Wire color
+  <input id=wireColor type=color value="#444444">
+</label><br>
+
+<label><input id=showCaps type=checkbox checked> Show round endpoints</label><br>
+
+<label><input id=randomVariant type=checkbox checked> Randomize variants</label><br>
+
+<label>? size
+  <input id=qmsize type=range min=0.05 max=0.25 step=0.01 value=0.12>
+</label><br>
+
+<label>Show answers (binary mask)
+  <input id=answerMask type=text value="0000" pattern="[01]{3,5}" maxlength=5 style="width:60px">
+</label>
+<small style="color:#666">1=digit, 0=?</small><br>
+
+<br>
+<label>Highlight bends (mask)
+  <input id=bendMask type=text value="0000" pattern="[01]{3,5}" maxlength=5 style="width:60px">
+</label>
+<small style="color:#666">1=show markers</small><br>
+
+<label>Marker radius
+  <input id=bendRadius type=range min=0.02 max=0.12 step=0.005 value=0.05>
+</label><br>
+
+<label>Marker thickness
+  <input id=bendThick type=range min=0.005 max=0.03 step=0.002 value=0.012>
+</label><br>
+
+<label>Marker color
+  <input id=bendColor type=color value="#ff6600">
+</label><br>
+
+<button id=reset type=button>🔄 Restore defaults</button>
+<button id=rerender type=button>Re-render</button>
+
+<hr>
+
+<canvas id=can title="Click to download"
+        style="border:1px solid grey;cursor:pointer;background:#fff"></canvas>
+
+<script>
+// Display current value next to range inputs
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:4px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'wire_bends';
+
+const DEF = {
+  w: 1000, h: 400, code: '1234',
+  thick: 0.08, padding: 0.12,
+  wireColor: '#444444', showCaps: true, randomVariant: true,
+  qmsize: 0.12, answerMask: '0000',
+  bendMask: '0000', bendRadius: 0.05, bendThick: 0.012, bendColor: '#ff6600'
+};
+
+// Wire patterns: each is array of [x, y] points (normalized 0-1)
+// Bends = number of corners = digit value
+const WIRE_PATTERNS = {
+  0: [ // Straight line (0 bends)
+    [[0, 0.5], [1, 0.5]],
+    [[0.5, 0], [0.5, 1]],
+    [[0.2, 0.5], [0.8, 0.5]]
+  ],
+  1: [ // L shape (1 bend)
+    [[0, 0.3], [0.5, 0.3], [0.5, 0.8]],
+    [[0.2, 0.7], [0.2, 0.3], [0.8, 0.3]],
+    [[0.7, 0.2], [0.7, 0.6], [0.2, 0.6]],
+    [[0.3, 0.8], [0.3, 0.4], [0.8, 0.4]]
+  ],
+  2: [ // Z/S shape (2 bends)
+    [[0.1, 0.2], [0.6, 0.2], [0.6, 0.7], [0.9, 0.7]],
+    [[0.2, 0.7], [0.2, 0.3], [0.7, 0.3], [0.7, 0.7]],
+    [[0.8, 0.2], [0.3, 0.2], [0.3, 0.7], [0.8, 0.7]],
+    [[0.1, 0.5], [0.4, 0.5], [0.4, 0.2], [0.9, 0.2]]
+  ],
+  3: [ // 3 bends
+    [[0.1, 0.2], [0.5, 0.2], [0.5, 0.5], [0.8, 0.5], [0.8, 0.8]],
+    [[0.2, 0.8], [0.2, 0.5], [0.5, 0.5], [0.5, 0.2], [0.8, 0.2]],
+    [[0.1, 0.3], [0.4, 0.3], [0.4, 0.7], [0.7, 0.7], [0.7, 0.3]]
+  ],
+  4: [ // 4 bends
+    [[0.1, 0.2], [0.4, 0.2], [0.4, 0.5], [0.7, 0.5], [0.7, 0.2], [0.9, 0.2]],
+    [[0.2, 0.8], [0.2, 0.5], [0.5, 0.5], [0.5, 0.2], [0.8, 0.2], [0.8, 0.5]],
+    [[0.1, 0.4], [0.3, 0.4], [0.3, 0.7], [0.6, 0.7], [0.6, 0.3], [0.9, 0.3]]
+  ],
+  5: [ // 5 bends
+    [[0.1, 0.2], [0.35, 0.2], [0.35, 0.5], [0.6, 0.5], [0.6, 0.2], [0.85, 0.2], [0.85, 0.5]],
+    [[0.15, 0.7], [0.15, 0.4], [0.4, 0.4], [0.4, 0.7], [0.65, 0.7], [0.65, 0.4], [0.9, 0.4]],
+    [[0.1, 0.3], [0.3, 0.3], [0.3, 0.6], [0.5, 0.6], [0.5, 0.3], [0.7, 0.3], [0.7, 0.7]]
+  ],
+  6: [ // 6 bends
+    [[0.1, 0.2], [0.3, 0.2], [0.3, 0.5], [0.5, 0.5], [0.5, 0.2], [0.7, 0.2], [0.7, 0.5], [0.9, 0.5]],
+    [[0.1, 0.6], [0.25, 0.6], [0.25, 0.3], [0.45, 0.3], [0.45, 0.6], [0.65, 0.6], [0.65, 0.3], [0.85, 0.3]],
+    [[0.15, 0.75], [0.15, 0.45], [0.35, 0.45], [0.35, 0.75], [0.55, 0.75], [0.55, 0.45], [0.75, 0.45], [0.75, 0.25]]
+  ],
+  7: [ // 7 bends
+    [[0.08, 0.25], [0.24, 0.25], [0.24, 0.55], [0.4, 0.55], [0.4, 0.25], [0.56, 0.25], [0.56, 0.55], [0.72, 0.55], [0.72, 0.25]],
+    [[0.1, 0.65], [0.1, 0.35], [0.28, 0.35], [0.28, 0.65], [0.46, 0.65], [0.46, 0.35], [0.64, 0.35], [0.64, 0.65], [0.82, 0.65]],
+    [[0.12, 0.7], [0.12, 0.4], [0.3, 0.4], [0.3, 0.7], [0.48, 0.7], [0.48, 0.4], [0.66, 0.4], [0.66, 0.7], [0.84, 0.7]]
+  ],
+  8: [ // 8 bends
+    [[0.07, 0.3], [0.2, 0.3], [0.2, 0.6], [0.35, 0.6], [0.35, 0.3], [0.5, 0.3], [0.5, 0.6], [0.65, 0.6], [0.65, 0.3], [0.8, 0.3]],
+    [[0.1, 0.7], [0.1, 0.4], [0.25, 0.4], [0.25, 0.7], [0.4, 0.7], [0.4, 0.4], [0.55, 0.4], [0.55, 0.7], [0.7, 0.7], [0.7, 0.4]],
+    [[0.08, 0.25], [0.22, 0.25], [0.22, 0.55], [0.36, 0.55], [0.36, 0.25], [0.5, 0.25], [0.5, 0.55], [0.64, 0.55], [0.64, 0.25], [0.78, 0.25]]
+  ],
+  9: [ // 9 bends
+    [[0.06, 0.35], [0.17, 0.35], [0.17, 0.65], [0.3, 0.65], [0.3, 0.35], [0.43, 0.35], [0.43, 0.65], [0.56, 0.65], [0.56, 0.35], [0.69, 0.35], [0.69, 0.65]],
+    [[0.08, 0.6], [0.08, 0.35], [0.21, 0.35], [0.21, 0.6], [0.34, 0.6], [0.34, 0.35], [0.47, 0.35], [0.47, 0.6], [0.6, 0.6], [0.6, 0.35], [0.73, 0.35]],
+    [[0.1, 0.7], [0.1, 0.4], [0.22, 0.4], [0.22, 0.7], [0.34, 0.7], [0.34, 0.4], [0.46, 0.4], [0.46, 0.7], [0.58, 0.7], [0.58, 0.4], [0.7, 0.4]]
+  ]
+};
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  const code = $('code').value || '1234';
+  const digits = code.split('').map(Number);
+  const N = digits.length;
+  const sceneW = W / N;
+
+  const answerMask = $('answerMask').value.padEnd(N, '0').slice(0, N);
+  const bendMask = $('bendMask').value.padEnd(N, '0').slice(0, N);
+
+  const opts = {
+    thick: +$('thick').value,
+    padding: +$('padding').value,
+    wireColor: $('wireColor').value,
+    showCaps: $('showCaps').checked,
+    randomVariant: $('randomVariant').checked,
+    qmFrac: +$('qmsize').value,
+    bendRadius: +$('bendRadius').value,
+    bendThick: +$('bendThick').value,
+    bendColor: $('bendColor').value
+  };
+
+  // Vertical separators
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < N; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * sceneW, 0);
+    ctx.lineTo(i * sceneW, H);
+    ctx.stroke();
+  }
+
+  digits.forEach((d, i) => drawScene(i * sceneW, 0, sceneW, H, d, opts, answerMask[i] === '1', bendMask[i] === '1'));
+}
+
+function drawScene(x0, y0, W, H, digit, o, showAnswer, showBendMarkers) {
+  const pad = o.padding * Math.min(W, H);
+  const qmH = H * o.qmFrac;
+  const qmGap = H * 0.03;
+
+  const areaX = x0 + pad;
+  const areaY = y0 + pad;
+  const areaW = W - 2 * pad;
+  const areaH = H - 2 * pad - qmH - qmGap;
+
+  // Get pattern
+  const patterns = WIRE_PATTERNS[digit];
+  const patternIdx = o.randomVariant ? Math.floor(Math.random() * patterns.length) : 0;
+  const pattern = patterns[patternIdx];
+
+  // Convert normalized coords to actual coords
+  const points = pattern.map(([nx, ny]) => [
+    areaX + nx * areaW,
+    areaY + ny * areaH
+  ]);
+
+  const lineW = o.thick * Math.min(W, H);
+
+  // Draw the wire
+  ctx.save();
+  ctx.strokeStyle = o.wireColor;
+  ctx.lineWidth = lineW;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  ctx.moveTo(points[0][0], points[0][1]);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i][0], points[i][1]);
+  }
+  ctx.stroke();
+
+  // Draw endpoints
+  if (o.showCaps) {
+    ctx.fillStyle = o.wireColor;
+    const capR = lineW * 0.55;
+    // Start cap
+    ctx.beginPath();
+    ctx.arc(points[0][0], points[0][1], capR, 0, Math.PI * 2);
+    ctx.fill();
+    // End cap
+    ctx.beginPath();
+    ctx.arc(points[points.length - 1][0], points[points.length - 1][1], capR, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+
+  // Draw bend markers (ovals around bend points, excluding endpoints)
+  if (showBendMarkers && points.length > 2) {
+    ctx.save();
+    ctx.strokeStyle = o.bendColor;
+    ctx.lineWidth = o.bendThick * Math.min(W, H);
+    const markerR = o.bendRadius * Math.min(W, H);
+
+    // Only mark interior points (bends), not endpoints
+    for (let i = 1; i < points.length - 1; i++) {
+      ctx.beginPath();
+      ctx.arc(points[i][0], points[i][1], markerR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Draw question mark or answer
+  const qmY = areaY + areaH + qmGap;
+  const fontSz = o.qmFrac * H;
+  ctx.save();
+  ctx.font = `${fontSz}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = showAnswer ? '#333' : '#999';
+  ctx.fillText(showAnswer ? digit : '?', x0 + W / 2, qmY);
+  ctx.restore();
+}
+
+// Live preview
+oninput = draw;
+draw();
+
+// Random code
+function randCode() {
+  const len = $('code').value.length || 4;
+  $('code').value = Array.from({length: len}, () => Math.floor(Math.random() * 10)).join('');
+}
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => { if (b.dataset.t === 'code') { randCode(); draw(); } };
+});
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = DEF[k];
+    else el.value = DEF[k];
+    // Update range display
+    if (el.type === 'range' && el.nextElementSibling) {
+      el.nextElementSibling.textContent = el.value;
+    }
+  }
+  draw();
+};
+
+$('rerender').onclick = draw;
+
+// Click to download
+$('can').onclick = () => {
+  const c = $('code').value || '1234';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  draw();
+};
+</script>

@@ -1,0 +1,325 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Corner-Count Polyline – generator</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=1000 min=50></label>
+<label>H <input id=h type=number value=400 min=50></label>
+
+<!-- === 4-digit code + 🎲 === -->
+<label>Code <input id=code type=text value=1234 pattern="\d{3,5}" maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity === -->
+<label>Line thickness
+  <input id=thick type=range min=0.02 max=0.15 step=0.01 value=0.06>
+</label><br>
+
+<label>Frame padding
+  <input id=padding type=range min=0.05 max=0.25 step=0.01 value=0.12>
+</label><br>
+
+<label>Frame opacity
+  <input id=frameOp type=range min=0 max=1 step=0.05 value=0.15>
+</label><br>
+
+<label>Frame roundness
+  <input id=frameRound type=range min=0 max=0.3 step=0.01 value=0.08>
+</label><br>
+
+<label>Line color
+  <input id=lineColor type=color value="#222222">
+</label><br>
+
+<label>? size
+  <input id=qmsize type=range min=0.05 max=0.25 step=0.01 value=0.12>
+</label><br>
+
+<label>Show answers (binary mask)
+  <input id=answerMask type=text value="0000" pattern="[01]{3,5}" maxlength=5 style="width:60px">
+</label>
+<small style="color:#666">1=digit, 0=?</small><br>
+
+<br>
+<label>Highlight bends (mask)
+  <input id=bendMask type=text value="0000" pattern="[01]{3,5}" maxlength=5 style="width:60px">
+</label>
+<small style="color:#666">1=show markers</small><br>
+
+<label>Marker radius
+  <input id=bendRadius type=range min=0.02 max=0.12 step=0.005 value=0.05>
+</label><br>
+
+<label>Marker thickness
+  <input id=bendThick type=range min=0.005 max=0.03 step=0.002 value=0.012>
+</label><br>
+
+<label>Marker color
+  <input id=bendColor type=color value="#ff6600">
+</label><br>
+
+<button id=reset type=button>🔄 Restore defaults</button>
+<button id=rerender type=button>Re-render</button>
+
+<hr>
+
+<canvas id=can title="Click to download"
+        style="border:1px solid grey;cursor:pointer;background:#fff"></canvas>
+
+<script>
+// Display current value next to range inputs
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:4px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'corner_polyline';
+
+const DEF = {
+  w: 1000, h: 400, code: '1234',
+  thick: 0.06, padding: 0.12, frameOp: 0.15, frameRound: 0.08,
+  lineColor: '#222222', qmsize: 0.12, answerMask: '0000',
+  bendMask: '0000', bendRadius: 0.05, bendThick: 0.012, bendColor: '#ff6600'
+};
+
+// Pre-designed path patterns for each digit (0-9)
+// Each path is an array of [dx, dy] movements (relative, will be scaled)
+// Number of direction changes = digit value
+const PATTERNS = {
+  0: [ // Straight line (0 corners)
+    [[1, 0]]
+  ],
+  1: [ // L shapes (1 corner)
+    [[0.5, 0], [0, 0.5]],
+    [[0, 0.5], [0.5, 0]],
+    [[0.5, 0], [0, -0.5]],
+    [[0, -0.5], [0.5, 0]]
+  ],
+  2: [ // Z/S shapes (2 corners)
+    [[0.4, 0], [0, 0.4], [0.4, 0]],
+    [[0, 0.4], [0.4, 0], [0, 0.4]],
+    [[0.4, 0], [0, -0.4], [0.4, 0]],
+    [[0, 0.4], [0.4, 0], [0, -0.4]]
+  ],
+  3: [ // 3 corners
+    [[0.3, 0], [0, 0.3], [0.3, 0], [0, 0.3]],
+    [[0, 0.3], [0.3, 0], [0, 0.3], [0.3, 0]],
+    [[0.3, 0], [0, 0.3], [-0.15, 0], [0, 0.3]]
+  ],
+  4: [ // 4 corners
+    [[0.25, 0], [0, 0.25], [0.25, 0], [0, 0.25], [0.25, 0]],
+    [[0, 0.25], [0.25, 0], [0, 0.25], [0.25, 0], [0, 0.25]],
+    [[0.3, 0], [0, 0.2], [-0.15, 0], [0, 0.2], [0.3, 0]]
+  ],
+  5: [ // 5 corners
+    [[0.2, 0], [0, 0.2], [0.2, 0], [0, 0.2], [0.2, 0], [0, 0.2]],
+    [[0, 0.2], [0.2, 0], [0, 0.2], [0.2, 0], [0, 0.2], [0.2, 0]],
+    [[0.25, 0], [0, 0.15], [-0.12, 0], [0, 0.15], [0.25, 0], [0, 0.15]]
+  ],
+  6: [ // 6 corners
+    [[0.18, 0], [0, 0.16], [0.18, 0], [0, 0.16], [0.18, 0], [0, 0.16], [0.18, 0]],
+    [[0, 0.16], [0.18, 0], [0, 0.16], [0.18, 0], [0, 0.16], [0.18, 0], [0, 0.16]]
+  ],
+  7: [ // 7 corners
+    [[0.15, 0], [0, 0.14], [0.15, 0], [0, 0.14], [0.15, 0], [0, 0.14], [0.15, 0], [0, 0.14]],
+    [[0, 0.14], [0.15, 0], [0, 0.14], [0.15, 0], [0, 0.14], [0.15, 0], [0, 0.14], [0.15, 0]]
+  ],
+  8: [ // 8 corners
+    [[0.13, 0], [0, 0.12], [0.13, 0], [0, 0.12], [0.13, 0], [0, 0.12], [0.13, 0], [0, 0.12], [0.13, 0]],
+    [[0, 0.12], [0.13, 0], [0, 0.12], [0.13, 0], [0, 0.12], [0.13, 0], [0, 0.12], [0.13, 0], [0, 0.12]]
+  ],
+  9: [ // 9 corners
+    [[0.11, 0], [0, 0.1], [0.11, 0], [0, 0.1], [0.11, 0], [0, 0.1], [0.11, 0], [0, 0.1], [0.11, 0], [0, 0.1]],
+    [[0, 0.1], [0.11, 0], [0, 0.1], [0.11, 0], [0, 0.1], [0.11, 0], [0, 0.1], [0.11, 0], [0, 0.1], [0.11, 0]]
+  ]
+};
+
+function draw() {
+  const W = +$('w').value, H = +$('h').value;
+  $('can').width = W; $('can').height = H;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  const code = $('code').value || '1234';
+  const digits = code.split('').map(Number);
+  const N = digits.length;
+  const sceneW = W / N;
+
+  const answerMask = $('answerMask').value.padEnd(N, '0').slice(0, N);
+  const bendMask = $('bendMask').value.padEnd(N, '0').slice(0, N);
+
+  const opts = {
+    thick: +$('thick').value,
+    padding: +$('padding').value,
+    frameOp: +$('frameOp').value,
+    frameRound: +$('frameRound').value,
+    lineColor: $('lineColor').value,
+    qmFrac: +$('qmsize').value,
+    bendRadius: +$('bendRadius').value,
+    bendThick: +$('bendThick').value,
+    bendColor: $('bendColor').value
+  };
+
+  // Vertical separators
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < N; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * sceneW, 0);
+    ctx.lineTo(i * sceneW, H);
+    ctx.stroke();
+  }
+
+  digits.forEach((d, i) => drawScene(i * sceneW, 0, sceneW, H, d, opts, answerMask[i] === '1', bendMask[i] === '1'));
+}
+
+function drawScene(x0, y0, W, H, digit, o, showAnswer, showBendMarkers) {
+  const pad = o.padding * Math.min(W, H);
+  const qmH = H * o.qmFrac;
+  const qmGap = H * 0.03;
+
+  const frameX = x0 + pad;
+  const frameY = y0 + pad;
+  const frameW = W - 2 * pad;
+  const frameH = H - 2 * pad - qmH - qmGap;
+  const radius = o.frameRound * Math.min(frameW, frameH);
+
+  // Draw frame
+  if (o.frameOp > 0) {
+    ctx.save();
+    ctx.strokeStyle = `rgba(0,0,0,${o.frameOp})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(frameX, frameY, frameW, frameH, radius);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Draw polyline
+  const patterns = PATTERNS[digit];
+  const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+
+  // Calculate bounding box of pattern
+  let minX = 0, maxX = 0, minY = 0, maxY = 0;
+  let cx = 0, cy = 0;
+  for (const [dx, dy] of pattern) {
+    cx += dx; cy += dy;
+    minX = Math.min(minX, cx); maxX = Math.max(maxX, cx);
+    minY = Math.min(minY, cy); maxY = Math.max(maxY, cy);
+  }
+  const patternW = maxX - minX || 0.01;
+  const patternH = maxY - minY || 0.01;
+
+  // Scale to fit inside frame with padding
+  const innerPad = pad * 0.5;
+  const availW = frameW - 2 * innerPad;
+  const availH = frameH - 2 * innerPad;
+  const scale = Math.min(availW / patternW, availH / patternH);
+
+  // Center the pattern
+  const scaledW = patternW * scale;
+  const scaledH = patternH * scale;
+  const startX = frameX + innerPad + (availW - scaledW) / 2 - minX * scale;
+  const startY = frameY + innerPad + (availH - scaledH) / 2 - minY * scale;
+
+  // Build the path points
+  const points = [[startX, startY]];
+  let px = startX, py = startY;
+  for (const [dx, dy] of pattern) {
+    px += dx * scale;
+    py += dy * scale;
+    points.push([px, py]);
+  }
+
+  // Draw the path
+  ctx.save();
+  ctx.strokeStyle = o.lineColor;
+  ctx.lineWidth = o.thick * Math.min(W, H);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  ctx.moveTo(points[0][0], points[0][1]);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i][0], points[i][1]);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  // Draw bend markers (ovals around bend points, excluding endpoints)
+  if (showBendMarkers && points.length > 2) {
+    ctx.save();
+    ctx.strokeStyle = o.bendColor;
+    ctx.lineWidth = o.bendThick * Math.min(W, H);
+    const markerR = o.bendRadius * Math.min(W, H);
+
+    // Only mark interior points (bends), not endpoints
+    for (let i = 1; i < points.length - 1; i++) {
+      ctx.beginPath();
+      ctx.arc(points[i][0], points[i][1], markerR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Draw question mark or answer
+  const qmY = frameY + frameH + qmGap;
+  const fontSz = o.qmFrac * H;
+  ctx.save();
+  ctx.font = `${fontSz}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = showAnswer ? '#333' : '#999';
+  ctx.fillText(showAnswer ? digit : '?', x0 + W / 2, qmY);
+  ctx.restore();
+}
+
+// Live preview
+oninput = draw;
+draw();
+
+// Random code
+function randCode() {
+  const len = $('code').value.length || 4;
+  $('code').value = Array.from({length: len}, () => Math.floor(Math.random() * 10)).join('');
+}
+
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => { if (b.dataset.t === 'code') { randCode(); draw(); } };
+});
+
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = DEF[k];
+    else el.value = DEF[k];
+    // Update range display
+    if (el.type === 'range' && el.nextElementSibling) {
+      el.nextElementSibling.textContent = el.value;
+    }
+  }
+  draw();
+};
+
+$('rerender').onclick = draw;
+
+// Click to download
+$('can').onclick = () => {
+  const c = $('code').value || '1234';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  draw();
+};
+</script>
