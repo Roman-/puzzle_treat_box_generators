@@ -31,6 +31,20 @@
 
 <label><input id=coloredDistractors type=checkbox> Colored distractors (non-overlapping with answer colors)</label><br>
 
+<label><input id=useShadow type=checkbox> Drop shadow</label><br>
+
+<label>Shadow blur
+  <input id=shadowBlur type=range min=0 max=20 step=1 value=6>
+</label><br>
+
+<label><input id=useOpacity type=checkbox> Opacity variation for distractors</label><br>
+
+<label><input id=useLetters type=checkbox> Letter distractors</label><br>
+
+<label>Letter ratio (%)
+  <input id=letterRatio type=range min=0 max=80 step=5 value=40>
+</label><br>
+
 <button id=reset type=button>🔄 Restore defaults</button>
 <button id=rerender type=button>🔁 Re-render</button>
 
@@ -83,7 +97,10 @@ const DISTRACTOR_PALETTE = [
 const DEF = {
   w: 800, h: 600, code: '1234',
   labelCount: 50, labelSize: 11, rotation: 20, jitter: 30,
-  coloredDistractors: false
+  coloredDistractors: false,
+  useShadow: false, shadowBlur: 6,
+  useOpacity: false,
+  useLetters: false, letterRatio: 40
 };
 
 let labels = [];
@@ -171,6 +188,10 @@ function generateLabels() {
 
   labels = [];
 
+  const opacityEnabled = $('useOpacity').checked;
+  const lettersEnabled = $('useLetters').checked;
+  const letRatio = +$('letterRatio').value / 100;
+
   // Answer labels: one per digit, each with a unique color
   for (let i = 0; i < digits.length; i++) {
     labels.push({
@@ -179,11 +200,12 @@ function generateLabels() {
       y: positions[i].y,
       rotation: (Math.random() - 0.5) * 2 * rotationVar * Math.PI / 180,
       color: DIGIT_COLORS[i],
-      isAnswer: true
+      isAnswer: true,
+      opacity: 1
     });
   }
 
-  // Distractor labels: random single digits, grey or colored
+  // Distractor labels: random single digits/letters, grey or colored
   const useColoredDistractors = $('coloredDistractors').checked;
   const numDistractors = Math.min(numLabels - digits.length, positions.length - digits.length);
   for (let i = 0; i < numDistractors; i++) {
@@ -191,13 +213,26 @@ function generateLabels() {
     if (useColoredDistractors) {
       color = DISTRACTOR_PALETTE[Math.floor(Math.random() * DISTRACTOR_PALETTE.length)];
     }
+
+    // Letter distractors
+    let value;
+    if (lettersEnabled && Math.random() < letRatio) {
+      value = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+    } else {
+      value = String(Math.floor(Math.random() * 10));
+    }
+
+    // Opacity variation: random between 20% and 100%
+    const opacity = opacityEnabled ? 0.2 + Math.random() * 0.8 : 1;
+
     labels.push({
-      value: String(Math.floor(Math.random() * 10)),
+      value,
       x: positions[digits.length + i].x,
       y: positions[digits.length + i].y,
       rotation: (Math.random() - 0.5) * 2 * rotationVar * Math.PI / 180,
       color,
-      isAnswer: false
+      isAnswer: false,
+      opacity
     });
   }
 
@@ -218,6 +253,10 @@ function draw() {
   const codeStr = $('code').value || '1234';
   const digits = codeStr.split('');
 
+  // Shadow settings
+  const useShadow = $('useShadow').checked;
+  const shadowBlur = +$('shadowBlur').value;
+
   // Draw labels
   ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
   ctx.textAlign = 'center';
@@ -227,10 +266,21 @@ function draw() {
     ctx.save();
     ctx.translate(label.x, label.y);
     ctx.rotate(label.rotation);
+    ctx.globalAlpha = label.opacity;
+
+    if (useShadow) {
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = shadowBlur;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+    }
+
     ctx.fillStyle = label.color;
     ctx.fillText(label.value, 0, 0);
     ctx.restore();
   }
+
+  ctx.globalAlpha = 1;
 
   // Question area: N colored circles with "?" below each
   const qHeight = H * 0.12;
@@ -309,6 +359,12 @@ $('labelSize').oninput = () => { generateLabels(); draw(); };
 $('w').oninput = () => { generateLabels(); draw(); };
 $('h').oninput = () => { generateLabels(); draw(); };
 $('coloredDistractors').onchange = () => { generateLabels(); draw(); };
+
+$('useShadow').onchange = () => { draw(); };
+$('shadowBlur').oninput = () => { draw(); };
+$('useOpacity').onchange = () => { generateLabels(); draw(); };
+$('useLetters').onchange = () => { generateLabels(); draw(); };
+$('letterRatio').oninput = () => { generateLabels(); draw(); };
 
 // Download
 $('can').onclick = () => {
