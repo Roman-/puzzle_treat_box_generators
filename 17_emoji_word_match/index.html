@@ -14,11 +14,11 @@
 
 <!-- === creativity controls === -->
 <label>Distractor pairs
-  <input id=distractors type=range min=4 max=30 value=14>
+  <input id=distractors type=range min=0 max=30 value=4>
 </label><br>
 
 <label>Emoji size (% of H)
-  <input id=emojiSize type=range min=3 max=20 value=12>
+  <input id=emojiSize type=range min=3 max=40 value=20>
 </label><br>
 
 <label>Badge size (% of emoji)
@@ -241,7 +241,7 @@ const NAME = 'emoji_word_match_v2';
 
 const DEF = {
   w: 800, h: 600, code: '1234',
-  distractors: 14, emojiSize: 12, badgeSize: 60,
+  distractors: 4, emojiSize: 20, badgeSize: 60,
   rotation: 10, jitter: 20, category: 'all', lang: 'en',
   badgeShape: 'circle', shadow: false, shadowBlur: 6,
   areaSplit: 75, dotMode: false
