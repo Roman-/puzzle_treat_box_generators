@@ -36,6 +36,9 @@
 <label>Grid rows <input id=gridRows type=number value=4 min=2 max=8 style="width:50px"></label>
 <label>Grid cols <input id=gridCols type=number value=3 min=2 max=8 style="width:50px"></label><br>
 
+<label>Rows to add <input id=rowsToAdd type=number value=0 min=0 max=4 style="width:50px"></label>
+<label>Max cols to add <input id=colsToAdd type=number value=0 min=0 max=4 style="width:50px"></label><br>
+
 <label>Panel spacing
   <input id=panelSpacing type=range min=10 max=60 step=2 value=30>
 </label><br>
@@ -46,6 +49,62 @@
 
 <label>Legend size (% of height)
   <input id=legendSize type=range min=3 max=15 step=0.5 value=8>
+</label><br>
+
+<!-- === visual variations === -->
+<hr>
+<strong>Visual Variations</strong><br>
+
+<label>Cell shape
+  <select id=cellShape>
+    <option value="square" selected>Square</option>
+    <option value="rounded">Rounded</option>
+    <option value="circle">Circle</option>
+    <option value="hexagon">Hexagon</option>
+  </select>
+</label><br>
+
+<label>Corner radius (rounded)
+  <input id=cornerRadius type=range min=5 max=50 step=1 value=20>
+</label><br>
+
+<label>Cell gap (% of cell)
+  <input id=cellGap type=range min=0 max=20 step=1 value=0>
+</label><br>
+
+<label>Question mark style
+  <select id=questionStyle>
+    <option value="plain" selected>Plain</option>
+    <option value="circled">Circled</option>
+    <option value="boxed">Boxed</option>
+    <option value="inverted">Inverted (white on black)</option>
+  </select>
+</label><br>
+
+<label>Panel frame
+  <select id=panelFrame>
+    <option value="none" selected>None</option>
+    <option value="simple">Simple</option>
+    <option value="double">Double</option>
+    <option value="shadow">Shadow</option>
+  </select>
+</label><br>
+
+<label>Frame thickness
+  <input id=frameThickness type=range min=1 max=6 step=0.5 value=2>
+</label><br>
+
+<label>Cell fill pattern
+  <select id=fillPattern>
+    <option value="solid" selected>Solid</option>
+    <option value="diagonal">Diagonal Stripes</option>
+    <option value="dots">Dots</option>
+    <option value="crosshatch">Crosshatch</option>
+  </select>
+</label><br>
+
+<label>Pattern density
+  <input id=patternDensity type=range min=3 max=12 step=1 value=6>
 </label><br>
 
 <button id=reset type=button>🔄 Restore defaults</button>
@@ -110,33 +169,41 @@ const NAME = 'pattern_grid_stripes';
 const DEF = {
   w: 900, h: 300, code: '1234',
   cellSize: 25, patternMode: 'random', displayMode: 'color',
-  gridRows: 4, gridCols: 3, panelSpacing: 30, gridBorder: 2,
-  legendSize: 8
+  gridRows: 4, gridCols: 3, rowsToAdd: 0, colsToAdd: 0,
+  panelSpacing: 30, gridBorder: 2, legendSize: 8,
+  cellShape: 'square', cornerRadius: 20, cellGap: 0,
+  questionStyle: 'plain', panelFrame: 'none', frameThickness: 2,
+  fillPattern: 'solid', patternDensity: 6
 };
 
 // Store generated grids
 let grids = [];
 
-function parseGridSize() {
-  const rows = +$('gridRows').value || 3;
-  const cols = +$('gridCols').value || 3;
-  return { rows, cols };
-}
-
 function generateGrid(answerDigit) {
-  const { rows, cols } = parseGridSize();
+  const baseRows = +$('gridRows').value || 4;
+  const baseCols = +$('gridCols').value || 3;
+  const extraRows = +$('rowsToAdd').value || 0;
+  const extraCols = +$('colsToAdd').value || 0;
+
+  // When extras are 0, all panels have the same size (baseRows x baseCols).
+  // When extras > 0, each panel gets a random size in [base, base+extra].
+  const rows = extraRows > 0
+    ? baseRows + Math.floor(Math.random() * (extraRows + 1))
+    : baseRows;
+  const cols = extraCols > 0
+    ? baseCols + Math.floor(Math.random() * (extraCols + 1))
+    : baseCols;
+
   const globalMode = $('patternMode').value;
   const mode = globalMode === 'random' ? (Math.random() < 0.5 ? 'row' : 'column') : globalMode;
 
   const grid = [];
 
   if (mode === 'row') {
-    // Each row is a single color
     const rowColors = [];
     for (let r = 0; r < rows; r++) {
       rowColors.push(Math.floor(Math.random() * 10));
     }
-    // Pick which row will have the answer
     const answerRow = Math.floor(Math.random() * rows);
     rowColors[answerRow] = answerDigit;
 
@@ -148,17 +215,14 @@ function generateGrid(answerDigit) {
       grid.push(row);
     }
 
-    // Pick a random cell in the answer row for "?"
     const questionCol = Math.floor(Math.random() * cols);
     return { grid, questionRow: answerRow, questionCol, answerDigit, mode };
 
   } else {
-    // Each column is a single color
     const colColors = [];
     for (let c = 0; c < cols; c++) {
       colColors.push(Math.floor(Math.random() * 10));
     }
-    // Pick which column will have the answer
     const answerCol = Math.floor(Math.random() * cols);
     colColors[answerCol] = answerDigit;
 
@@ -170,7 +234,6 @@ function generateGrid(answerDigit) {
       grid.push(row);
     }
 
-    // Pick a random cell in the answer column for "?"
     const questionRow = Math.floor(Math.random() * rows);
     return { grid, questionRow, questionCol: answerCol, answerDigit, mode };
   }
@@ -183,6 +246,136 @@ function regenerateGrids() {
   grids = digits.map(d => generateGrid(d));
 }
 
+// Helper: draw cell shape path
+function drawCellShape(x, y, size, shape, radius) {
+  const gap = size * (+$('cellGap').value / 100);
+  const effectiveSize = size - gap;
+  const offset = gap / 2;
+  const cx = x + offset;
+  const cy = y + offset;
+
+  ctx.beginPath();
+  if (shape === 'circle') {
+    const r = effectiveSize / 2;
+    ctx.arc(cx + r, cy + r, r, 0, Math.PI * 2);
+  } else if (shape === 'hexagon') {
+    const r = effectiveSize / 2;
+    const centerX = cx + r;
+    const centerY = cy + r;
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i - Math.PI / 2;
+      const px = centerX + r * Math.cos(angle);
+      const py = centerY + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  } else if (shape === 'rounded') {
+    const r = Math.min(radius, effectiveSize / 2) * (effectiveSize / 100);
+    ctx.roundRect(cx, cy, effectiveSize, effectiveSize, r);
+  } else {
+    // square
+    ctx.rect(cx, cy, effectiveSize, effectiveSize);
+  }
+}
+
+// Helper: draw question mark with style
+function drawQuestionMark(centerX, centerY, fontSize, style) {
+  ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (style === 'circled') {
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, fontSize * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#666';
+    ctx.fillText('?', centerX, centerY);
+  } else if (style === 'boxed') {
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(centerX - fontSize * 0.5, centerY - fontSize * 0.5, fontSize, fontSize);
+    ctx.fillStyle = '#666';
+    ctx.fillText('?', centerX, centerY);
+  } else if (style === 'inverted') {
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, fontSize * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText('?', centerX, centerY);
+  } else {
+    ctx.fillStyle = '#666';
+    ctx.fillText('?', centerX, centerY);
+  }
+}
+
+// Helper: draw panel frame
+function drawPanelFrame(x, y, w, h, frameType, thickness) {
+  if (frameType === 'none') return;
+
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = thickness;
+
+  if (frameType === 'simple') {
+    ctx.strokeRect(x - 5, y - 5, w + 10, h + 10);
+  } else if (frameType === 'double') {
+    ctx.strokeRect(x - 5, y - 5, w + 10, h + 10);
+    ctx.strokeRect(x - 10, y - 10, w + 20, h + 20);
+  } else if (frameType === 'shadow') {
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(x + 4, y + 4, w, h);
+    ctx.strokeRect(x, y, w, h);
+  }
+}
+
+// Helper: draw cell fill pattern overlay
+function drawCellPattern(x, y, size, patternType, density, baseColor) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, size, size);
+  ctx.clip();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1.5;
+
+  const spacing = size / density;
+
+  if (patternType === 'diagonal') {
+    for (let i = -size; i < size * 2; i += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(x + i, y);
+      ctx.lineTo(x + i + size, y + size);
+      ctx.stroke();
+    }
+  } else if (patternType === 'dots') {
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    const dotSize = spacing / 4;
+    for (let dx = spacing / 2; dx < size; dx += spacing) {
+      for (let dy = spacing / 2; dy < size; dy += spacing) {
+        ctx.beginPath();
+        ctx.arc(x + dx, y + dy, dotSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (patternType === 'crosshatch') {
+    for (let i = -size; i < size * 2; i += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(x + i, y);
+      ctx.lineTo(x + i + size, y + size);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + i + size, y);
+      ctx.lineTo(x + i, y + size);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
 function draw() {
   const W = +$('w').value, H = +$('h').value;
   $('can').width = W; $('can').height = H;
@@ -193,6 +386,13 @@ function draw() {
 
   const displayMode = $('displayMode').value;
   const showLegend = displayMode === 'color';
+  const cellShape = $('cellShape').value;
+  const cornerRadius = +$('cornerRadius').value;
+  const questionStyle = $('questionStyle').value;
+  const panelFrame = $('panelFrame').value;
+  const frameThickness = +$('frameThickness').value;
+  const fillPattern = $('fillPattern').value;
+  const patternDensity = +$('patternDensity').value;
 
   const legendSizePct = +$('legendSize').value / 100;
   const legendSquareSize = H * legendSizePct;
@@ -211,13 +411,20 @@ function draw() {
 
     for (let i = 0; i < 10; i++) {
       const x = legendStartX + legendSpacing * i + legendSpacing / 2;
+      const lx = x - legendSquareSize / 2;
+      const ly = legendY - legendSquareSize / 2;
 
       // Draw square
       ctx.fillStyle = shuffledColorHex[i];
-      ctx.fillRect(x - legendSquareSize / 2, legendY - legendSquareSize / 2, legendSquareSize, legendSquareSize);
+      ctx.fillRect(lx, ly, legendSquareSize, legendSquareSize);
+
+      if (fillPattern !== 'solid') {
+        drawCellPattern(lx, ly, legendSquareSize, fillPattern, patternDensity, shuffledColorHex[i]);
+      }
+
       ctx.strokeStyle = '#333';
       ctx.lineWidth = 1;
-      ctx.strokeRect(x - legendSquareSize / 2, legendY - legendSquareSize / 2, legendSquareSize, legendSquareSize);
+      ctx.strokeRect(lx, ly, legendSquareSize, legendSquareSize);
 
       // Draw digit below
       ctx.fillStyle = '#333';
@@ -235,7 +442,6 @@ function draw() {
   }
 
   // Draw grids
-  const { rows, cols } = parseGridSize();
   const numPanels = grids.length;
   const panelSpacing = +$('panelSpacing').value;
   const gridAreaTop = showLegend ? separatorY + 15 : 15;
@@ -263,6 +469,9 @@ function draw() {
     const gridLeft = panelCenterX - gridWidth / 2;
     const gridTop = gridAreaTop + (gridAreaHeight - gridHeight) / 2;
 
+    // Draw panel frame
+    drawPanelFrame(gridLeft, gridTop, gridWidth, gridHeight, panelFrame, frameThickness);
+
     // Draw grid cells
     for (let row = 0; row < actualRows; row++) {
       for (let col = 0; col < actualCols; col++) {
@@ -279,31 +488,44 @@ function draw() {
         } else {
           ctx.fillStyle = '#f5f5f5';
         }
-        ctx.fillRect(x, y, cellSize, cellSize);
+
+        drawCellShape(x, y, cellSize, cellShape, cornerRadius);
+        ctx.fill();
+
+        // Draw pattern on colored cells
+        if (!isQuestion && displayMode !== 'digit' && fillPattern !== 'solid') {
+          const gap = cellSize * (+$('cellGap').value / 100);
+          const offset = gap / 2;
+          drawCellPattern(x + offset, y + offset, cellSize - gap, fillPattern, patternDensity, shuffledColorHex[value]);
+        }
 
         // Cell border
         ctx.strokeStyle = '#333';
         ctx.lineWidth = borderWidth;
-        ctx.strokeRect(x, y, cellSize, cellSize);
+        drawCellShape(x, y, cellSize, cellShape, cornerRadius);
+        ctx.stroke();
 
         // Cell content
+        const gap = cellSize * (+$('cellGap').value / 100);
         const centerX = x + cellSize / 2;
         const centerY = y + cellSize / 2;
-        const fontSize = cellSize * 0.5;
-        ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        const fontSize = (cellSize - gap) * 0.5;
 
         if (isQuestion) {
-          ctx.fillStyle = '#666';
-          ctx.fillText('?', centerX, centerY);
+          drawQuestionMark(centerX, centerY, fontSize, questionStyle);
         } else if (displayMode === 'both') {
+          ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
           ctx.fillStyle = '#fff';
           ctx.strokeStyle = '#333';
           ctx.lineWidth = 1;
           ctx.strokeText(value.toString(), centerX, centerY);
           ctx.fillText(value.toString(), centerX, centerY);
         } else if (displayMode === 'digit') {
+          ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
           ctx.fillStyle = '#333';
           ctx.fillText(value.toString(), centerX, centerY);
         }
@@ -331,6 +553,11 @@ $('reset').onclick = () => {
     if (el.type === 'checkbox') el.checked = DEF[k];
     else el.value = DEF[k];
   }
+  // Update range display spans
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if (span && span.tagName === 'SPAN') span.textContent = r.value;
+  });
   regenerateGrids();
   draw();
 };
@@ -344,6 +571,8 @@ $('code').oninput = () => { regenerateGrids(); draw(); };
 $('patternMode').onchange = () => { regenerateGrids(); draw(); };
 $('gridRows').onchange = () => { regenerateGrids(); draw(); };
 $('gridCols').onchange = () => { regenerateGrids(); draw(); };
+$('rowsToAdd').onchange = () => { regenerateGrids(); draw(); };
+$('colsToAdd').onchange = () => { regenerateGrids(); draw(); };
 
 document.querySelectorAll('input, select').forEach(el => {
   if (!el.oninput) el.oninput = draw;
