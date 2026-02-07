@@ -20,9 +20,9 @@ This repository contains js generators for these challenges.
 ## Generator page layout
 - Canvas size controls
 - The code text input, filled with initial 4-digit code "1234"
-- horizontal line
+- horizontal line - only one per page, separates the controls from the canvas
 - Creativity controls to change some properties of the puzzle.
-- "Restore defaults" button restores the parameters; "Re-render" button re-renders the canvas, so if any randomization is applied, the user gets the new randomized image on canvas.
+- "Render" button that re-renders the canvas, so if any randomization is applied, the user gets the new randomized image on canvas.
 - Canvas. White background (printer friendly), 1px grey border, cursor:pointer, title: click to download
 
 ## Examples
