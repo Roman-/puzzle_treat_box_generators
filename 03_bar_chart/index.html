@@ -6,8 +6,9 @@
 <label>W <input id=w type=number value=800 min=50></label>
 <label>H <input id=h type=number value=600 min=50></label>
 
-<!-- === 4-digit code + 🎲 === -->
-<label>Code <input id=code type=text value=1234 pattern="\d{4}" maxlength=4></label>
+<!-- === digit count + code + 🎲 === -->
+<label>Digits <input id=n type=number value=4 min=3 max=5></label>
+<label>Code <input id=code type=text value=1234 maxlength=5></label>
 <button type=button data-t="code">🎲</button>
 
 <hr>
@@ -18,16 +19,17 @@
 </label><br>
 
 <label>Bar outline (× scene&nbsp;H)
-  <input id=outline type=range min=0 max=0.05 step=0.001 value=0.01>
+  <input id=outline type=range min=0 max=0.05 step=0.001 value=0.005>
 </label><br>
 
-<label>Bar 1 color <input id=bar1 type=color value="#ff4040">
-</label><br>
-<label>Bar 2 color <input id=bar2 type=color value="#4090ff">
-</label><br>
-<label>Bar 3 color <input id=bar3 type=color value="#00aa40">
-</label><br>
-<label>Bar 4 color <input id=bar4 type=color value="#ffd800">
+<label>Color palette
+  <select id=palette>
+    <option value=bright>Bright</option>
+    <option value=pastel>Pastel</option>
+    <option value=warm>Warm</option>
+    <option value=cool>Cool</option>
+    <option value=neon>Neon</option>
+  </select>
 </label><br>
 
 <label>Grid line thickness (× H)
@@ -37,7 +39,7 @@
 <label>Grid line color <input id=lineColor type=color value="#888888">
 </label><br>
 
-<label><input id=dash type=checkbox> Dashed grid lines</label><br>
+<label><input id=dash type=checkbox checked> Dashed grid lines</label><br>
 
 <label><input id=floating type=checkbox> Floating bars</label><br>
 <label><input id=digits type=checkbox checked> Draw digits</label><br>
@@ -45,6 +47,21 @@
 <label>Label size (× H)
   <input id=font type=range min=0.02 max=0.08 step=0.01 value=0.04>
 </label><br>
+
+<label>Arrow position (0=left, 1=right)
+  <input id=arrowPos type=range min=0 max=1 step=0.01 value=0.25>
+</label><br>
+
+<label>Arrow thickness (× H)
+  <input id=arrowThick type=range min=0.002 max=0.02 step=0.001 value=0.003>
+</label><br>
+
+<label>Arrowhead span (× bar&nbsp;W)
+  <input id=arrowHead type=range min=0.02 max=0.30 step=0.01 value=0.08>
+</label><br>
+
+<label>Answer mask <input id=mask type=text value="0000" maxlength=5 style="width:60px">
+</label> <small>1=digit, 0=?</small><br>
 
 <button id=reset type=button>🔄 Restore defaults</button>
 
@@ -65,14 +82,31 @@ document.querySelectorAll('input[type=range]').forEach(r => {
 <script>
   const $ = id => document.getElementById(id);
   const ctx = $('can').getContext('2d');
-  const SCENES = 4, NAME = 'bar_chart';
+  const NAME = 'bar_chart';
+  const PALETTES = {
+    bright: ['#ff4040','#4090ff','#00aa40','#ffd800','#ff8c00','#9b59b6','#e91e90','#00bcd4'],
+    pastel: ['#ffb3ba','#bae1ff','#baffc9','#ffffba','#e8baff','#ffd9ba','#baffee','#ffbadc'],
+    warm:   ['#ff4040','#ff8c00','#ffd800','#ff6b6b','#e74c3c','#f39c12','#d35400','#c0392b'],
+    cool:   ['#4090ff','#00aa40','#00bcd4','#9b59b6','#3498db','#1abc9c','#2ecc71','#8e44ad'],
+    neon:   ['#ff0080','#00ff80','#8000ff','#ff8000','#0080ff','#80ff00','#ff0040','#40ff00']
+  };
+  function seededShuffle(arr, seed) {
+    const a = [...arr]; let s = Math.abs(seed) || 1;
+    for (let i = a.length - 1; i > 0; i--) {
+      s = (s * 1103515245 + 12345) & 0x7fffffff;
+      const j = s % (i + 1);
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
   const DEF = {
-    w:800, h:600, code:'1234',
-    barW:0.60, outline:0.01,
-    bar1:'#ff4040', bar2:'#4090ff', bar3:'#00aa40', bar4:'#ffd800',
-    lineT:0.005, lineColor:'#888888', dash:false,
+    w:800, h:600, n:4, code:'1234',
+    barW:0.60, outline:0.005, palette:'bright',
+    lineT:0.005, lineColor:'#888888', dash:true,
     floating:false, digits:true,
-    font:0.04
+    font:0.04,
+    arrowPos:0.25, arrowThick:0.003, arrowHead:0.08, mask:'0000'
   };
 
   function draw(){
@@ -80,7 +114,8 @@ document.querySelectorAll('input[type=range]').forEach(r => {
     $('can').width = W; $('can').height = H;
     ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
 
-    const digitsArr = ($('code').value||'0000').padEnd(4,'0').slice(0,4).split('').map(Number);
+    const N = Math.max(3, Math.min(5, +$('n').value || 4));
+    const digitsArr = ($('code').value||'0'.repeat(N)).padEnd(N,'0').slice(0,N).split('').map(Number);
 
     const axisFont = +$('font').value * H;
     const marginV = axisFont * 1.5;
@@ -112,12 +147,18 @@ document.querySelectorAll('input[type=range]').forEach(r => {
     ctx.setLineDash([]);
 
     // bars
-    const barArea = chartW / SCENES;
+    const barArea = chartW / N;
     const barW = barArea * +$('barW').value;
     const outline = +$('outline').value * H;
-    const colors = [$('bar1').value, $('bar2').value, $('bar3').value, $('bar4').value];
+    const palName = $('palette').value || 'bright';
+    const codeSeed = parseInt($('code').value || '1234', 10);
+    const colors = seededShuffle(PALETTES[palName] || PALETTES.bright, codeSeed).slice(0, N);
 
-    for (let i=0;i<SCENES;i++){
+    const mask = ($('mask').value||'0'.repeat(N)).padEnd(N,'0').slice(0,N);
+    const arrowPosVal = +$('arrowPos').value;
+    const arrowLW = +$('arrowThick').value * H;
+
+    for (let i=0;i<N;i++){
       const h = digitsArr[i] * step;
       const x = axisW + barArea*i + (barArea - barW)/2;
       const baseVal = floating ? Math.floor(Math.random()*(10 - digitsArr[i])) : 0;
@@ -129,11 +170,59 @@ document.querySelectorAll('input[type=range]').forEach(r => {
         ctx.strokeStyle = '#000';
         ctx.strokeRect(x, y, barW, h);
       }
+
+      // arrow + label (skip if digit is 0)
+      if (digitsArr[i] > 0) {
+        const arrowX = x + arrowPosVal * barW;
+        const yTop = y;
+        const yBot = y + h;
+        const headSize = barW * +$('arrowHead').value;
+
+        // shaft
+        ctx.beginPath();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = arrowLW;
+        ctx.moveTo(arrowX, yTop);
+        ctx.lineTo(arrowX, yBot);
+        ctx.stroke();
+
+        // top arrowhead (pointing up)
+        ctx.beginPath();
+        ctx.moveTo(arrowX - headSize, yTop + headSize);
+        ctx.lineTo(arrowX, yTop);
+        ctx.lineTo(arrowX + headSize, yTop + headSize);
+        ctx.stroke();
+
+        // bottom arrowhead (pointing down)
+        ctx.beginPath();
+        ctx.moveTo(arrowX - headSize, yBot - headSize);
+        ctx.lineTo(arrowX, yBot);
+        ctx.lineTo(arrowX + headSize, yBot - headSize);
+        ctx.stroke();
+
+        // label: "?" or digit
+        const midY = yTop + h / 2;
+        const gap = headSize + arrowLW * 2;
+        const label = mask[i] === '1' ? String(digitsArr[i]) : '?';
+        ctx.font = `bold ${axisFont}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#000';
+        ctx.fillText(label, arrowX + gap, midY);
+
+        // restore text settings for axis labels
+        ctx.font = `${axisFont}px sans-serif`;
+        ctx.textAlign = 'right';
+      }
     }
   }
   oninput = draw; draw();
 
-  function randCode(){ $('code').value = (Math.random()*1e4|0).toString().padStart(4,'0'); }
+  function randCode(){
+    const n = Math.max(3, Math.min(5, +$('n').value || 4));
+    const max = Math.pow(10, n);
+    $('code').value = (Math.random()*max|0).toString().padStart(n,'0');
+  }
 
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { if(b.dataset.t==='code'){ randCode(); draw(); } });
 
@@ -148,7 +237,8 @@ document.querySelectorAll('input[type=range]').forEach(r => {
   };
 
   $('can').onclick = () => {
-    const c = ($('code').value||'0000').padEnd(4,'0').slice(0,4);
+    const n = Math.max(3, Math.min(5, +$('n').value || 4));
+    const c = ($('code').value||'0'.repeat(n)).padEnd(n,'0').slice(0,n);
     const a = document.createElement('a');
     a.download = `${NAME}_${c}.png`;
     a.href = $('can').toDataURL();
