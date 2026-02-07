@@ -3,7 +3,7 @@
 <title>Emoji Code Scatter (Rows) – generator</title>
 
 <!-- === size === -->
-<label>W <input id=w type=number value=800 min=100></label>
+<label>W <input id=w type=number value=400 min=100></label>
 <label>H <input id=h type=number value=600 min=100></label>
 
 <!-- === code + dice === -->
@@ -14,11 +14,11 @@
 
 <!-- === visual settings === -->
 <label>Number of rows
-  <input id=rowCount type=range min=6 max=20 step=1 value=10>
+  <input id=rowCount type=range min=4 max=25 step=1 value=6>
 </label><br>
 
 <label>Row height (% H)
-  <input id=rowHeight type=range min=4 max=12 step=1 value=7>
+  <input id=rowHeight type=range min=4 max=20 step=1 value=12>
 </label><br>
 
 <label>Columns
@@ -28,6 +28,8 @@
     <option value="2">2</option>
   </select>
 </label><br>
+
+<label><input id=showEmoji type=checkbox> Show emoji in row</label><br>
 
 <label>Dot style
   <select id=dotStyle>
@@ -194,9 +196,9 @@ const ctx = $('can').getContext('2d');
 const NAME = 'emoji_code_scatter_v3';
 
 const DEF = {
-  w: 800, h: 600, code: '1234',
-  rowCount: 10, rowHeight: 7,
-  columns: 'auto', dotStyle: 'filled',
+  w: 400, h: 600, code: '1234',
+  rowCount: 6, rowHeight: 12,
+  columns: 'auto', dotStyle: 'filled', showEmoji: false,
   category: 'all', lang: 'en'
 };
 
@@ -330,14 +332,17 @@ function draw() {
     }
 
     // Emoji + Word
-    const emojiX = dotStyle === 'none' ? (x0 + 8) : (dotX + dotRadius + 8);
+    const showEmoji = $('showEmoji').checked;
+    const labelX = dotStyle === 'none' ? (x0 + 8) : (dotX + dotRadius + 8);
     ctx.font = `${fontSize}px system-ui, -apple-system, sans-serif`;
     ctx.fillStyle = '#333';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(r.emoji, emojiX, centerY);
-    const emojiWidth = ctx.measureText(r.emoji).width;
-    const wordX = emojiX + emojiWidth + 4;
+    let wordX = labelX;
+    if (showEmoji) {
+      ctx.fillText(r.emoji, labelX, centerY);
+      wordX = labelX + ctx.measureText(r.emoji).width + 4;
+    }
     ctx.fillText(r.word, wordX, centerY);
     const wordWidth = ctx.measureText(r.word).width;
 
@@ -436,6 +441,7 @@ $('lang').onchange = fullRedraw;
 $('rowHeight').oninput = draw;
 $('columns').onchange = draw;
 $('dotStyle').onchange = draw;
+$('showEmoji').onchange = draw;
 $('w').oninput = draw;
 $('h').oninput = draw;
 
@@ -447,7 +453,11 @@ $('reset').onclick = () => {
   for (const k in DEF) {
     const el = $(k);
     if (!el) continue;
-    el.value = DEF[k];
+    if (el.type === 'checkbox') {
+      el.checked = DEF[k];
+    } else {
+      el.value = DEF[k];
+    }
     if (el.type === 'range') {
       const span = el.nextElementSibling;
       if (span && span.tagName === 'SPAN') span.textContent = DEF[k];
