@@ -1,32 +1,40 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Emoji Code Scatter (Tags) – generator</title>
+<title>Emoji Code Scatter (Rows) – generator</title>
 
-<!-- === size first === -->
+<!-- === size === -->
 <label>W <input id=w type=number value=800 min=100></label>
 <label>H <input id=h type=number value=600 min=100></label>
 
-<!-- === 4-digit code + dice === -->
+<!-- === code + dice === -->
 <label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
-<button type=button data-t="code">&#x1F3B2;</button>
+<button type=button data-t="code">🎲</button>
 
 <hr>
 
-<!-- === creativity controls === -->
-<label>Number of tags
-  <input id=numTags type=range min=6 max=20 value=12>
+<!-- === visual settings === -->
+<label>Number of rows
+  <input id=rowCount type=range min=6 max=20 step=1 value=10>
 </label><br>
 
-<label>Tag size (% of H)
-  <input id=tagSize type=range min=4 max=14 value=8>
+<label>Row height (% H)
+  <input id=rowHeight type=range min=4 max=12 step=1 value=7>
 </label><br>
 
-<label>Rotation (degrees)
-  <input id=rotation type=range min=0 max=20 value=8>
+<label>Columns
+  <select id=columns>
+    <option value="auto" selected>auto</option>
+    <option value="1">1</option>
+    <option value="2">2</option>
+  </select>
 </label><br>
 
-<label>Jitter (% of cell)
-  <input id=jitter type=range min=0 max=35 value=15>
+<label>Dot style
+  <select id=dotStyle>
+    <option value="filled" selected>filled</option>
+    <option value="outline">outline</option>
+    <option value="none">none</option>
+  </select>
 </label><br>
 
 <label>Category
@@ -48,14 +56,22 @@
   </select>
 </label><br>
 
-<hr>
-
 <button id=reset type=button>Restore defaults</button>
 <button id=rerender type=button>Re-render</button>
 
 <hr>
 
 <canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:1px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
 
 <script>
 const EMOJI_LEXICON = [
@@ -169,277 +185,262 @@ const getFilteredLexicon = (category) => {
   if (!category || category === 'all') return EMOJI_LEXICON.slice();
   return (EMOJI_CATEGORIES[category] || []).slice();
 };
-
-const PASTEL_COLORS = [
-  '#FFE0E0',
-  '#FFE8D0',
-  '#FFFACD',
-  '#E0FFE0',
-  '#D0F0FF',
-  '#E8D0FF',
-  '#FFD0E8',
-  '#D0FFE8',
-  '#FFF0D0',
-  '#E0E8FF',
-];
 </script>
 
 <script>
-document.querySelectorAll('input[type=range]').forEach(r => {
-  const span = document.createElement('span');
-  span.style.cssText = 'margin-left:1px;font-size:12px;color:#666';
-  span.textContent = r.value;
-  r.after(span);
-  r.addEventListener('input', () => span.textContent = r.value);
-});
-</script>
 
-<script>
 const $ = id => document.getElementById(id);
 const ctx = $('can').getContext('2d');
-const NAME = 'emoji_code_scatter_v2';
+const NAME = 'emoji_code_scatter_v3';
 
 const DEF = {
   w: 800, h: 600, code: '1234',
-  numTags: 12, tagSize: 8, rotation: 8,
-  jitter: 15, category: 'all', lang: 'en'
+  rowCount: 10, rowHeight: 7,
+  columns: 'auto', dotStyle: 'filled',
+  category: 'all', lang: 'en'
 };
 
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
+const DOT_COLORS = [
+  '#C41E3A', '#0066CC', '#228B22', '#CC6600',
+  '#6B3FA0', '#008B8B', '#B8860B', '#CC3366',
+];
+
+let rows = [];
+let answerEntry = null;
+
+const shuffle = arr => {
+  for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  return a;
+  return arr;
+};
+
+function generateRandomCode(length) {
+  let code = '';
+  for (let i = 0; i < length; i++) code += Math.floor(Math.random() * 10);
+  return code;
 }
 
-function darkenColor(hex, amount) {
-  const r = Math.max(0, parseInt(hex.slice(1, 3), 16) - amount);
-  const g = Math.max(0, parseInt(hex.slice(3, 5), 16) - amount);
-  const b = Math.max(0, parseInt(hex.slice(5, 7), 16) - amount);
-  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
-}
-
-function roundedRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
-let tags = [];
-let answerEmoji = null;
-let answerWord = '';
-
-function regenerate() {
+function generateRows() {
   const codeStr = $('code').value || '1234';
-  const numDigits = codeStr.length;
-  const N = +$('numTags').value;
+  const numRows = +$('rowCount').value;
   const cat = $('category').value;
   const lang = $('lang').value;
 
   const pool = getFilteredLexicon(cat);
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+  if (pool.length < numRows) {
+    pool.length = 0;
+    pool.push(...EMOJI_LEXICON.slice());
   }
-  const picked = pool.slice(0, Math.min(N, pool.length));
+  shuffle(pool);
+  const chosen = pool.slice(0, numRows);
 
-  // First picked entry is the answer
-  const answerEntry = picked[0];
-  answerEmoji = answerEntry.emoji;
-  answerWord = getEmojiName(answerEmoji, lang, 'singular');
+  const answerIdx = Math.floor(Math.random() * chosen.length);
+  answerEntry = chosen[answerIdx];
 
-  // Build tags
-  const items = [];
-  for (let i = 0; i < picked.length; i++) {
-    const entry = picked[i];
-    const word = getEmojiName(entry.emoji, lang, 'singular');
-    const num = (i === 0) ? codeStr : randomCode(numDigits);
-    const pastel = PASTEL_COLORS[Math.floor(Math.random() * PASTEL_COLORS.length)];
-    items.push({ word, num, color: pastel, isAnswer: i === 0 });
-  }
-
-  // Shuffle for placement
-  const shuffled = shuffle(items);
-
-  // Compute grid positions
-  const W = +$('w').value, H = +$('h').value;
-  const mainH = H * 0.85;
-  const jitterPct = +$('jitter').value / 100;
-  const rotMax = +$('rotation').value;
-  const total = shuffled.length;
-
-  const aspect = W / mainH;
-  let cols = Math.ceil(Math.sqrt(total * aspect));
-  let rows = Math.ceil(total / cols);
-
-  const cellW = W / cols;
-  const cellH = mainH / rows;
-
-  for (let i = 0; i < shuffled.length; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const cx = cellW * (col + 0.5);
-    const cy = cellH * (row + 0.5);
-    const jx = (Math.random() - 0.5) * cellW * jitterPct;
-    const jy = (Math.random() - 0.5) * cellH * jitterPct;
-    const angle = (Math.random() - 0.5) * 2 * rotMax * Math.PI / 180;
-    shuffled[i].x = cx + jx;
-    shuffled[i].y = cy + jy;
-    shuffled[i].angle = angle;
+  const usedNumbers = new Set([codeStr]);
+  const distractorNumbers = [];
+  let attempts = 0;
+  while (distractorNumbers.length < numRows - 1 && attempts < 10000) {
+    const num = generateRandomCode(codeStr.length);
+    if (!usedNumbers.has(num)) {
+      usedNumbers.add(num);
+      distractorNumbers.push(num);
+    }
+    attempts++;
   }
 
-  tags = shuffled;
-}
-
-function randomCode(numDigits) {
-  let s = '';
-  for (let i = 0; i < numDigits; i++) s += Math.floor(Math.random() * 10);
-  return s;
+  rows = [];
+  let dIdx = 0;
+  for (let i = 0; i < chosen.length; i++) {
+    const word = getEmojiName(chosen[i].emoji, lang, 'singular');
+    const dotColor = DOT_COLORS[Math.floor(Math.random() * DOT_COLORS.length)];
+    rows.push({
+      number: i === answerIdx ? codeStr : (distractorNumbers[dIdx++] || '0000'),
+      emoji: chosen[i].emoji,
+      word: word,
+      dotColor: dotColor,
+      isAnswer: i === answerIdx
+    });
+  }
+  shuffle(rows);
 }
 
 function draw() {
   const W = +$('w').value, H = +$('h').value;
-  $('can').width = W; $('can').height = H;
+  $('can').width = W;
+  $('can').height = H;
+
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
 
-  const tagSizePct = +$('tagSize').value / 100;
-  const tagH = H * tagSizePct;
-  const fontSize = tagH * 0.5;
-  const numFontSize = fontSize;
-  const wordFontSize = fontSize * 0.85;
-  const padX = tagH * 0.35;
-  const padY = tagH * 0.15;
-  const radius = tagH * 0.25;
+  if (rows.length === 0) generateRows();
+
+  const numRows = rows.length;
+  const colSetting = $('columns').value;
+  const numCols = colSetting === 'auto' ? (numRows > 10 ? 2 : 1) : +colSetting;
+  const dotStyle = $('dotStyle').value;
+  const rowHeightPct = +$('rowHeight').value / 100;
+
   const mainH = H * 0.85;
   const bottomY = mainH;
-  const bottomH = H * 0.15;
+  const padding = W * 0.03;
+  const colW = (W - padding * 2) / numCols;
+  const colGap = padding * 0.5;
 
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'left';
+  const rowsPerCol = Math.ceil(numRows / numCols);
+  const maxRowH = (mainH - padding * 2) / rowsPerCol;
+  const rowH = Math.min(H * rowHeightPct, maxRowH);
+  const fontSize = Math.min(rowH * 0.55, H * 0.04);
+  const dotRadius = fontSize * 0.22;
+  const dotLeftOffset = padding + dotRadius + 4;
+  const wordLeftOffset = dotStyle === 'none' ? dotLeftOffset : dotLeftOffset + dotRadius + 8;
 
-  // Draw tags in main area
-  for (const tag of tags) {
-    ctx.save();
-    ctx.translate(tag.x, tag.y);
-    ctx.rotate(tag.angle);
+  for (let i = 0; i < numRows; i++) {
+    const col = Math.floor(i / rowsPerCol);
+    const rowInCol = i % rowsPerCol;
+    const r = rows[i];
 
-    // Measure text to compute tag width
-    ctx.font = 'bold ' + numFontSize + 'px sans-serif';
-    const numW = ctx.measureText(tag.num).width;
-    ctx.font = wordFontSize + 'px sans-serif';
-    const wordW = ctx.measureText(tag.word).width;
-    const gap = tagH * 0.25;
-    const totalW = padX + numW + gap + wordW + padX;
-    const totalH = tagH;
+    const x0 = padding + col * colW;
+    const y = padding + rowInCol * rowH;
 
-    // Draw rounded rect centered at origin
-    const rx = -totalW / 2;
-    const ry = -totalH / 2;
-    ctx.fillStyle = tag.color;
-    roundedRect(rx, ry, totalW, totalH, radius);
-    ctx.fill();
-    ctx.strokeStyle = darkenColor(tag.color, 60);
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    if (y + rowH > mainH) continue;
 
-    // Draw number (bold)
+    // Alternating row background
+    const bgColor = rowInCol % 2 === 0 ? '#FFFFFF' : '#F5F5F5';
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(x0, y, colW - colGap, rowH);
+
+    const centerY = y + rowH / 2;
+    const dotX = x0 + dotRadius + 8;
+
+    // Draw dot
+    if (dotStyle !== 'none') {
+      ctx.beginPath();
+      ctx.arc(dotX, centerY, dotRadius, 0, Math.PI * 2);
+      if (dotStyle === 'filled') {
+        ctx.fillStyle = r.dotColor;
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = r.dotColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    // Emoji + Word
+    const emojiX = dotStyle === 'none' ? (x0 + 8) : (dotX + dotRadius + 8);
+    ctx.font = `${fontSize}px system-ui, -apple-system, sans-serif`;
     ctx.fillStyle = '#333';
-    ctx.font = 'bold ' + numFontSize + 'px sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(tag.num, rx + padX, 0);
+    ctx.fillText(r.emoji, emojiX, centerY);
+    const emojiWidth = ctx.measureText(r.emoji).width;
+    const wordX = emojiX + emojiWidth + 4;
+    ctx.fillText(r.word, wordX, centerY);
+    const wordWidth = ctx.measureText(r.word).width;
 
-    // Draw word (regular)
-    ctx.font = wordFontSize + 'px sans-serif';
-    ctx.fillText(tag.word, rx + padX + numW + gap, 0);
+    // Number (right-aligned)
+    const numberX = x0 + colW - colGap - 8;
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = '#111';
+    ctx.textAlign = 'right';
+    ctx.fillText(r.number, numberX, centerY);
+    const numWidth = ctx.measureText(r.number).width;
 
-    ctx.restore();
+    // Dot leaders between word and number
+    const leaderStart = wordX + wordWidth + 6;
+    const leaderEnd = numberX - numWidth - 4;
+    if (leaderEnd > leaderStart + 8) {
+      ctx.font = `${fontSize * 0.8}px system-ui, -apple-system, sans-serif`;
+      ctx.fillStyle = '#CCC';
+      ctx.textAlign = 'left';
+      const dotChar = '.';
+      const dotW = ctx.measureText(dotChar).width;
+      const spacing = dotW * 1.2;
+      let dx = leaderStart;
+      while (dx + dotW < leaderEnd) {
+        ctx.fillText(dotChar, dx, centerY);
+        dx += spacing;
+      }
+    }
   }
 
-  // Draw separator line
+  // Separator line
   ctx.beginPath();
-  ctx.moveTo(W * 0.03, bottomY);
-  ctx.lineTo(W * 0.97, bottomY);
-  ctx.strokeStyle = '#ccc';
-  ctx.lineWidth = 1;
+  ctx.moveTo(W * 0.05, bottomY);
+  ctx.lineTo(W * 0.95, bottomY);
+  ctx.strokeStyle = '#bbb';
+  ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Draw bottom zone: emoji in grey rounded rect + arrow + ????
-  const emojiFontSize = bottomH * 0.55;
-  const promptFontSize = bottomH * 0.35;
-  const framePadX = emojiFontSize * 0.3;
-  const framePadY = emojiFontSize * 0.15;
-  const frameH = emojiFontSize + framePadY * 2;
-  const frameW = emojiFontSize + framePadX * 2;
-  const frameR = frameH * 0.2;
-  const frameCY = bottomY + bottomH / 2;
-  const frameX = W * 0.5 - frameW - promptFontSize * 0.5;
-  const frameY = frameCY - frameH / 2;
+  // Bottom zone: emoji prompt
+  const bottomCenterY = bottomY + (H - bottomY) / 2;
+  const promptFontSize = (H - bottomY) * 0.45;
+  const codeStr = $('code').value || '1234';
+  const questionMarks = '?'.repeat(codeStr.length);
 
-  // Grey rounded rect for emoji
-  ctx.fillStyle = '#f0f0f0';
-  roundedRect(frameX, frameY, frameW, frameH, frameR);
-  ctx.fill();
-  ctx.strokeStyle = '#ccc';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  if (answerEntry) {
+    const emojiText = answerEntry.emoji;
+    const arrowText = ' \u2192 ';
+    const qText = questionMarks;
 
-  // Emoji inside frame
-  ctx.font = emojiFontSize + 'px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(answerEmoji, frameX + frameW / 2, frameCY);
+    ctx.font = `${promptFontSize}px system-ui, -apple-system, sans-serif`;
+    const emojiW = ctx.measureText(emojiText).width;
+    const arrowW = ctx.measureText(arrowText).width;
+    const qW = ctx.measureText(qText).width;
+    const totalW = emojiW + arrowW + qW;
+    const startX = (W - totalW) / 2;
 
-  // Arrow and ????
-  ctx.fillStyle = '#999';
-  ctx.font = promptFontSize + 'px sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('\u2192 ????', frameX + frameW + promptFontSize * 0.4, frameCY);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#111';
+    ctx.fillText(emojiText, startX, bottomCenterY);
+
+    ctx.fillStyle = '#999';
+    ctx.fillText(arrowText, startX + emojiW, bottomCenterY);
+
+    ctx.font = `bold ${promptFontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = '#999';
+    ctx.fillText(qText, startX + emojiW + arrowW, bottomCenterY);
+  }
 }
 
-// Random code
+// === Event handlers ===
+
 function randCode() {
-  const numDigits = ($('code').value || '1234').length;
-  const max = Math.pow(10, numDigits);
-  $('code').value = (Math.random() * max | 0).toString().padStart(numDigits, '0');
+  const numDigits = ($('code').value || '').length || 4;
+  $('code').value = generateRandomCode(numDigits);
+}
+
+function fullRedraw() {
+  generateRows();
+  draw();
 }
 
 // Dice button
 document.querySelectorAll('[data-t]').forEach(b => {
   b.onclick = () => {
-    if (b.dataset.t === 'code') {
-      randCode();
-      regenerate();
-      draw();
-    }
+    if (b.dataset.t === 'code') { randCode(); fullRedraw(); }
   };
 });
 
-// All inputs trigger re-render
-$('code').oninput = () => { regenerate(); draw(); };
-$('numTags').oninput = () => { regenerate(); draw(); };
-$('category').onchange = () => { regenerate(); draw(); };
-$('lang').onchange = () => { regenerate(); draw(); };
+// Inputs that need full regeneration
+$('code').oninput = fullRedraw;
+$('rowCount').oninput = fullRedraw;
+$('category').onchange = fullRedraw;
+$('lang').onchange = fullRedraw;
 
-document.querySelectorAll('input[type=range]').forEach(el => {
-  if (el.id === 'numTags') return;
-  el.addEventListener('input', () => { regenerate(); draw(); });
-});
+// Inputs that only need re-draw
+$('rowHeight').oninput = draw;
+$('columns').onchange = draw;
+$('dotStyle').onchange = draw;
+$('w').oninput = draw;
+$('h').oninput = draw;
 
-$('w').oninput = () => { regenerate(); draw(); };
-$('h').oninput = () => { regenerate(); draw(); };
+// Re-render button
+$('rerender').onclick = fullRedraw;
 
 // Restore defaults
 $('reset').onclick = () => {
@@ -447,34 +448,26 @@ $('reset').onclick = () => {
     const el = $(k);
     if (!el) continue;
     el.value = DEF[k];
+    if (el.type === 'range') {
+      const span = el.nextElementSibling;
+      if (span && span.tagName === 'SPAN') span.textContent = DEF[k];
+    }
   }
-  document.querySelectorAll('input[type=range]').forEach(r => {
-    const span = r.nextElementSibling;
-    if (span && span.tagName === 'SPAN') span.textContent = r.value;
-  });
-  regenerate();
-  draw();
-};
-
-// Re-render
-$('rerender').onclick = () => {
-  regenerate();
-  draw();
+  fullRedraw();
 };
 
 // Download on canvas click
 $('can').onclick = () => {
-  const c = $('code').value || '1234';
+  const c = $('code').value || '0000';
   const a = document.createElement('a');
-  a.download = NAME + '_' + c + '.png';
+  a.download = `${NAME}_${c}.png`;
   a.href = $('can').toDataURL();
   a.click();
   randCode();
-  regenerate();
-  draw();
+  fullRedraw();
 };
 
-// Initial render
-regenerate();
-draw();
+// Initial draw
+fullRedraw();
+
 </script>
