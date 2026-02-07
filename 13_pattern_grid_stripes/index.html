@@ -80,6 +80,17 @@ const BASIC_COLORS = [
 const BASIC_COLOR_HEX = BASIC_COLORS.map(c => c.hex);
 const COLORS = DIGIT_COLORS;
 const COLOR_HEX = DIGIT_COLOR_HEX;
+
+// Shuffled mapping: shuffledColorHex[digit] = color hex
+let shuffledColorHex = [...COLOR_HEX];
+
+function shuffleColorMap() {
+  shuffledColorHex = [...COLOR_HEX];
+  for (let i = shuffledColorHex.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledColorHex[i], shuffledColorHex[j]] = [shuffledColorHex[j], shuffledColorHex[i]];
+  }
+}
 </script>
 <script>
 // Display current value next to range inputs
@@ -166,6 +177,7 @@ function generateGrid(answerDigit) {
 }
 
 function regenerateGrids() {
+  shuffleColorMap();
   const codeStr = $('code').value || '1234';
   const digits = codeStr.split('').map(Number);
   grids = digits.map(d => generateGrid(d));
@@ -201,7 +213,7 @@ function draw() {
       const x = legendStartX + legendSpacing * i + legendSpacing / 2;
 
       // Draw square
-      ctx.fillStyle = COLOR_HEX[i];
+      ctx.fillStyle = shuffledColorHex[i];
       ctx.fillRect(x - legendSquareSize / 2, legendY - legendSquareSize / 2, legendSquareSize, legendSquareSize);
       ctx.strokeStyle = '#333';
       ctx.lineWidth = 1;
@@ -263,7 +275,7 @@ function draw() {
         if (isQuestion) {
           ctx.fillStyle = '#fff';
         } else if (displayMode !== 'digit') {
-          ctx.fillStyle = COLOR_HEX[value];
+          ctx.fillStyle = shuffledColorHex[value];
         } else {
           ctx.fillStyle = '#f5f5f5';
         }

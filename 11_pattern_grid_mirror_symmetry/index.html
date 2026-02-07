@@ -10,7 +10,6 @@
 <label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
 <button type=button data-t="code">🎲</button>
 
-<hr>
 
 <!-- === matrix size === -->
 <label>Matrix W <input id=matrixW type=number value=6 min=2 max=12 style="width:50px"></label>
@@ -24,7 +23,6 @@
   </select>
 </label><br>
 
-<hr>
 
 <!-- === creativity === -->
 <label>Cell size (% of panel)
@@ -57,17 +55,49 @@
 </label><br>
 
 <label>Grid border
-  <input id=gridBorder type=range min=1 max=5 step=0.5 value=2>
+  <input id=gridBorder type=range min=0 max=5 step=0.5 value=2>
 </label><br>
+
+<label>Cell border style
+  <select id=borderStyle>
+    <option value="solid" selected>Solid</option>
+    <option value="double">Double</option>
+    <option value="thin">Thin</option>
+    <option value="none">None</option>
+  </select>
+</label><br>
+
+
+<label>Frame style
+  <select id=frameStyle>
+    <option value="none" selected>None</option>
+    <option value="thick">Thick</option>
+    <option value="double">Double</option>
+    <option value="rounded">Rounded</option>
+    <option value="shadow">Shadow</option>
+    <option value="rainbow">Rainbow</option>
+  </select>
+</label>
+<label>Frame thickness
+  <input id=frameThickness type=range min=1 max=15 step=1 value=4>
+</label><br>
+
 
 <label>Legend size (% of height)
   <input id=legendSize type=range min=3 max=10 step=0.5 value=6>
 </label><br>
 
+<label>Legend position
+  <select id=legendPosition>
+    <option value="top" selected>Top</option>
+    <option value="bottom">Bottom</option>
+    <option value="left">Left</option>
+  </select>
+</label><br>
+
 <button id=reset type=button>🔄 Restore defaults</button>
 <button id=newPattern type=button>🔀 New patterns (same code)</button>
 
-<hr>
 
 <canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
 
@@ -96,6 +126,17 @@ const BASIC_COLORS = [
 const BASIC_COLOR_HEX = BASIC_COLORS.map(c => c.hex);
 const COLORS = DIGIT_COLORS;
 const COLOR_HEX = DIGIT_COLOR_HEX;
+
+// Shuffled mapping: shuffledColorHex[digit] = color hex
+let shuffledColorHex = [...COLOR_HEX];
+
+function shuffleColorMap() {
+  shuffledColorHex = [...COLOR_HEX];
+  for (let i = shuffledColorHex.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledColorHex[i], shuffledColorHex[j]] = [shuffledColorHex[j], shuffledColorHex[i]];
+  }
+}
 </script>
 <script>
 const $ = id => document.getElementById(id);
@@ -107,7 +148,9 @@ const DEF = {
   matrixW: 6, matrixH: 6, patternMode: 'both',
   cellSize: 30, displayMode: 'both', showAxis: true,
   axisLength: 40, axisStyle: 'dashed', panelSpacing: 30, gridBorder: 2,
-  legendSize: 6
+  borderStyle: 'solid',
+  frameStyle: 'none', frameThickness: 4,
+  legendSize: 6, legendPosition: 'top'
 };
 
 // Store generated grids
@@ -202,12 +245,73 @@ function generateGrid(answerDigit, cols, rows, mode) {
 }
 
 function regenerateGrids() {
+  shuffleColorMap();
   const codeStr = $('code').value || '1234';
   const digits = codeStr.split('').map(Number);
   const cols = +$('matrixW').value || 6;
   const rows = +$('matrixH').value || 6;
   const mode = $('patternMode').value;
   grids = digits.map(d => generateGrid(d, cols, rows, mode));
+}
+
+function drawRoundedRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawLegendHorizontal(x, y, availW, legendCircleR) {
+  const legendSquareSize = legendCircleR * 2;
+  const legendStartX = x + availW * 0.02;
+  const legendEndX = x + availW * 0.98;
+  const legendSpacing = (legendEndX - legendStartX) / 10;
+
+  ctx.font = `bold ${legendCircleR * 1.2}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i < 10; i++) {
+    const cx = legendStartX + legendSpacing * i + legendSpacing / 2;
+
+    ctx.fillStyle = shuffledColorHex[i];
+    ctx.fillRect(cx - legendSquareSize / 2, y - legendSquareSize / 2, legendSquareSize, legendSquareSize);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cx - legendSquareSize / 2, y - legendSquareSize / 2, legendSquareSize, legendSquareSize);
+
+    ctx.fillStyle = '#333';
+    ctx.fillText(i.toString(), cx, y + legendSquareSize / 2 + legendCircleR * 0.8);
+  }
+}
+
+function drawLegendVertical(x, y, availH, legendCircleR) {
+  const legendSquareSize = legendCircleR * 2;
+  const entryHeight = availH / 10;
+
+  ctx.font = `bold ${legendCircleR * 1.0}px system-ui, sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i < 10; i++) {
+    const cy = y + entryHeight * i + entryHeight / 2;
+
+    ctx.fillStyle = shuffledColorHex[i];
+    ctx.fillRect(x, cy - legendSquareSize / 2, legendSquareSize, legendSquareSize);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, cy - legendSquareSize / 2, legendSquareSize, legendSquareSize);
+
+    ctx.fillStyle = '#333';
+    ctx.fillText(i.toString(), x + legendSquareSize + legendCircleR * 0.4, cy);
+  }
 }
 
 function draw() {
@@ -220,60 +324,71 @@ function draw() {
 
   const legendSizePct = +$('legendSize').value / 100;
   const legendCircleR = H * legendSizePct / 2;
-  const legendHeight = legendCircleR * 4;
-  const legendY = legendCircleR * 1.5;
+  const legendPosition = $('legendPosition').value;
+  const displayMode = $('displayMode').value;
+  const frameStyle = $('frameStyle').value;
+  const frameThickness = +$('frameThickness').value;
+  const cellBorderStyle = $('borderStyle').value;
 
-  // Draw legend
-  const legendStartX = W * 0.05;
-  const legendEndX = W * 0.95;
-  const legendSpacing = (legendEndX - legendStartX) / 10;
-  const legendSquareSize = legendCircleR * 2;
+  // Auto-hide legend when display mode includes digits (only show for "color only")
+  const showLegend = displayMode === 'color';
 
-  ctx.font = `bold ${legendCircleR * 1.2}px system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+  // Compute legend and grid areas based on legendPosition
+  const legendBand = legendCircleR * 5;
+  let gridAreaLeft, gridAreaTop, gridAreaWidth, gridAreaHeight;
 
-  for (let i = 0; i < 10; i++) {
-    const x = legendStartX + legendSpacing * i + legendSpacing / 2;
-
-    // Draw square
-    ctx.fillStyle = COLOR_HEX[i];
-    ctx.fillRect(x - legendSquareSize / 2, legendY - legendSquareSize / 2, legendSquareSize, legendSquareSize);
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x - legendSquareSize / 2, legendY - legendSquareSize / 2, legendSquareSize, legendSquareSize);
-
-    // Draw digit below
-    ctx.fillStyle = '#333';
-    ctx.fillText(i.toString(), x, legendY + legendSquareSize / 2 + legendCircleR * 0.8);
+  if (showLegend && legendPosition === 'top') {
+    const legendY = legendCircleR * 1.5;
+    drawLegendHorizontal(0, legendY, W, legendCircleR);
+    const separatorY = legendY + legendCircleR * 2.8;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.02, separatorY);
+    ctx.lineTo(W * 0.98, separatorY);
+    ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1; ctx.stroke();
+    gridAreaLeft = 0; gridAreaTop = separatorY + 10;
+    gridAreaWidth = W; gridAreaHeight = H - gridAreaTop - 10;
+  } else if (showLegend && legendPosition === 'bottom') {
+    gridAreaLeft = 0; gridAreaTop = 10;
+    const legendTop = H - legendBand;
+    gridAreaHeight = legendTop - gridAreaTop - 10;
+    gridAreaWidth = W;
+    const separatorY = legendTop - 5;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.02, separatorY);
+    ctx.lineTo(W * 0.98, separatorY);
+    ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1; ctx.stroke();
+    const legendY = legendTop + legendCircleR * 1.5;
+    drawLegendHorizontal(0, legendY, W, legendCircleR);
+  } else if (showLegend && legendPosition === 'left') {
+    const legendW = legendCircleR * 5;
+    drawLegendVertical(legendCircleR * 0.5, 10, H - 20, legendCircleR);
+    const separatorX = legendW;
+    ctx.beginPath();
+    ctx.moveTo(separatorX, H * 0.02);
+    ctx.lineTo(separatorX, H * 0.98);
+    ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1; ctx.stroke();
+    gridAreaLeft = separatorX + 10; gridAreaTop = 10;
+    gridAreaWidth = W - gridAreaLeft - 10; gridAreaHeight = H - 20;
+  } else {
+    // Legend hidden (auto-hide or no legend needed)
+    gridAreaLeft = 10; gridAreaTop = 10;
+    gridAreaWidth = W - 20; gridAreaHeight = H - 20;
   }
-
-  // Separator line
-  const separatorY = legendY + legendCircleR * 2.8;
-  ctx.beginPath();
-  ctx.moveTo(W * 0.02, separatorY);
-  ctx.lineTo(W * 0.98, separatorY);
-  ctx.strokeStyle = '#ddd';
-  ctx.lineWidth = 1;
-  ctx.stroke();
 
   // Draw grids
   const numPanels = grids.length;
   const panelSpacing = +$('panelSpacing').value;
-  const gridAreaTop = separatorY + 15;
-  const gridAreaHeight = H - gridAreaTop - 15;
-  const totalPanelWidth = W - 40;
+  const totalPanelWidth = gridAreaWidth - 40;
   const panelWidth = (totalPanelWidth - (numPanels - 1) * panelSpacing) / numPanels;
   const cellSizePct = +$('cellSize').value / 100;
   const borderWidth = +$('gridBorder').value;
-  const displayMode = $('displayMode').value;
   const showAxis = $('showAxis').checked;
   const axisStyle = $('axisStyle').value;
   const patternMode = $('patternMode').value;
 
   for (let p = 0; p < numPanels; p++) {
     const { grid, questionRow, questionCol, answerDigit, cols, rows } = grids[p];
-    const panelX = 20 + p * (panelWidth + panelSpacing);
+    const panelX = gridAreaLeft + 20 + p * (panelWidth + panelSpacing);
     const panelCenterX = panelX + panelWidth / 2;
 
     // Calculate cell size based on grid dimensions
@@ -320,13 +435,11 @@ function draw() {
         ctx.stroke();
       };
 
-      // Vertical axis (for vertical or both symmetry)
       if (patternMode === 'vertical' || patternMode === 'both') {
         const axisX = gridLeft + gridWidth / 2;
         drawAxisLine(axisX, gridTop - axisExt, axisX, gridTop + gridHeight + axisExt, true);
       }
 
-      // Horizontal axis (for horizontal or both symmetry)
       if (patternMode === 'horizontal' || patternMode === 'both') {
         const axisY = gridTop + gridHeight / 2;
         drawAxisLine(gridLeft - axisExt, axisY, gridLeft + gridWidth + axisExt, axisY, false);
@@ -347,16 +460,29 @@ function draw() {
         if (isQuestion) {
           ctx.fillStyle = '#fff';
         } else if (displayMode !== 'digit') {
-          ctx.fillStyle = COLOR_HEX[value];
+          ctx.fillStyle = shuffledColorHex[value];
         } else {
           ctx.fillStyle = '#f5f5f5';
         }
         ctx.fillRect(x, y, cellSize, cellSize);
 
         // Cell border
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = borderWidth;
-        ctx.strokeRect(x, y, cellSize, cellSize);
+        if (cellBorderStyle === 'solid') {
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = borderWidth;
+          ctx.strokeRect(x, y, cellSize, cellSize);
+        } else if (cellBorderStyle === 'double') {
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = Math.max(0.5, borderWidth * 0.5);
+          ctx.strokeRect(x, y, cellSize, cellSize);
+          const inset = 2;
+          ctx.strokeRect(x + inset, y + inset, cellSize - inset * 2, cellSize - inset * 2);
+        } else if (cellBorderStyle === 'thin') {
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 0.5;
+          ctx.strokeRect(x, y, cellSize, cellSize);
+        }
+        // 'none': no internal borders
 
         // Cell content
         const centerX = x + cellSize / 2;
@@ -370,7 +496,6 @@ function draw() {
           ctx.fillStyle = '#666';
           ctx.fillText('?', centerX, centerY);
         } else if (displayMode === 'both') {
-          // White digit on colored background
           ctx.fillStyle = '#fff';
           ctx.strokeStyle = '#333';
           ctx.lineWidth = 1;
@@ -380,8 +505,60 @@ function draw() {
           ctx.fillStyle = '#333';
           ctx.fillText(value.toString(), centerX, centerY);
         }
-        // color-only mode: no text needed
       }
+    }
+
+    // For 'none' border style, draw only the outer grid border
+    if (cellBorderStyle === 'none' && borderWidth > 0) {
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = borderWidth;
+      ctx.strokeRect(gridLeft, gridTop, gridWidth, gridHeight);
+    }
+
+    // Frame decoration
+    if (frameStyle !== 'none') {
+      const pad = frameThickness;
+      const fx = gridLeft - pad;
+      const fy = gridTop - pad;
+      const fw = gridWidth + pad * 2;
+      const fh = gridHeight + pad * 2;
+
+      ctx.save();
+      if (frameStyle === 'thick') {
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = frameThickness;
+        ctx.strokeRect(fx, fy, fw, fh);
+      } else if (frameStyle === 'double') {
+        const gap = Math.max(2, frameThickness * 0.6);
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = Math.max(1, frameThickness * 0.4);
+        ctx.strokeRect(fx, fy, fw, fh);
+        ctx.strokeRect(fx - gap, fy - gap, fw + gap * 2, fh + gap * 2);
+      } else if (frameStyle === 'rounded') {
+        const radius = Math.max(4, frameThickness * 2);
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = frameThickness;
+        drawRoundedRect(fx, fy, fw, fh, radius);
+        ctx.stroke();
+      } else if (frameStyle === 'shadow') {
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+        ctx.shadowBlur = frameThickness * 2;
+        ctx.shadowOffsetX = frameThickness * 0.5;
+        ctx.shadowOffsetY = frameThickness * 0.5;
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = Math.max(1, frameThickness * 0.5);
+        ctx.strokeRect(fx, fy, fw, fh);
+      } else if (frameStyle === 'rainbow') {
+        const rainbowColors = ['#FF0000','#FF7F00','#FFFF00','#00FF00','#0000FF','#4B0082','#9400D3'];
+        const stripW = frameThickness / rainbowColors.length;
+        for (let s = 0; s < rainbowColors.length; s++) {
+          const offset = s * stripW;
+          ctx.strokeStyle = rainbowColors[s];
+          ctx.lineWidth = Math.max(1, stripW);
+          ctx.strokeRect(fx - offset, fy - offset, fw + offset * 2, fh + offset * 2);
+        }
+      }
+      ctx.restore();
     }
   }
 }
