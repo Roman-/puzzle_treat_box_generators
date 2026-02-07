@@ -26,12 +26,41 @@
 <hr>
 
 <!-- === visual settings === -->
+
+<label>Digit Font Family
+  <select id=fontFamily>
+    <option value="system-ui, -apple-system, sans-serif" selected>System Sans</option>
+    <option value="Georgia, 'Times New Roman', serif">Serif</option>
+    <option value="'Courier New', Courier, monospace">Monospace</option>
+    <option value="'Comic Sans MS', cursive">Cursive</option>
+  </select>
+</label><br>
+
+<label>Digit Style
+  <select id=digitStyle>
+    <option value="outlined" selected>Outlined</option>
+    <option value="filled">Filled</option>
+    <option value="filled-outline">Filled + Outline</option>
+  </select>
+</label><br>
+
+<label><input type=checkbox id=shadowEnabled> Digit shadow</label><br>
+<label>Shadow blur <input id=shadowBlur type=range min=0 max=20 step=1 value=5></label><br>
+<label>Shadow offset X <input id=shadowOffsetX type=range min=-10 max=10 step=1 value=3></label><br>
+<label>Shadow offset Y <input id=shadowOffsetY type=range min=-10 max=10 step=1 value=3></label><br>
+
+<br>
+
 <label>Digit size (% of height)
   <input id=digitSize type=range min=30 max=80 step=1 value=50>
 </label><br>
 
 <label>Outline thickness (% of digit)
   <input id=outlineThickness type=range min=3 max=20 step=1 value=8>
+</label><br>
+
+<label>Max rotation (&deg;)
+  <input id=maxRotation type=range min=0 max=45 step=1 value=0>
 </label><br>
 
 <label>Total distractors
@@ -123,12 +152,17 @@ const RULES = {
 const DEF = {
   w: 800, h: 300, code: '1234',
   ruleType: 'color', digitSize: 50,
-  outlineThickness: 8, distractors: 6
+  outlineThickness: 8, distractors: 6,
+  fontFamily: 'system-ui, -apple-system, sans-serif',
+  digitStyle: 'outlined',
+  shadowEnabled: false,
+  shadowBlur: 5, shadowOffsetX: 3, shadowOffsetY: 3,
+  maxRotation: 0
 };
 
 // Current state
 let currentRule = null;
-let displaySequence = []; // { digit, colorIndex, isAnswer }
+let displaySequence = []; // { digit, colorIndex, isAnswer, rotation }
 
 // Utility functions
 const randomElement = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -139,6 +173,15 @@ const shuffle = arr => {
   }
   return arr;
 };
+
+function darkenHex(hex, percent) {
+  hex = hex.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const factor = 1 - percent / 100;
+  return '#' + [r, g, b].map(c => Math.max(0, Math.round(c * factor)).toString(16).padStart(2, '0')).join('');
+}
 
 function selectNewRule() {
   let ruleType = $('ruleType').value;
@@ -191,6 +234,11 @@ function generateDisplaySequence() {
   // For color rules, all digits can be distractors (just with wrong color)
   const useAnyDigitAsDistractor = currentRule.needsColorMatch;
 
+  const maxRot = +$('maxRotation').value;
+  function randRotation() {
+    return maxRot > 0 ? (Math.random() * 2 - 1) * maxRot : 0;
+  }
+
   // Create answer entries
   const answerEntries = codeDigits.map(codeDigit => {
     let codeColor;
@@ -202,7 +250,8 @@ function generateDisplaySequence() {
     return {
       digit: codeDigit,
       colorIndex: codeColor,
-      isAnswer: true
+      isAnswer: true,
+      rotation: randRotation()
     };
   });
 
@@ -228,7 +277,8 @@ function generateDisplaySequence() {
     distractorEntries.push({
       digit: distractorDigit,
       colorIndex: distractorColor,
-      isAnswer: false
+      isAnswer: false,
+      rotation: randRotation()
     });
   }
 
@@ -276,6 +326,9 @@ function draw() {
 
   const digitSizePct = +$('digitSize').value / 100;
   const outlineThicknessPct = +$('outlineThickness').value / 100;
+  const fontFamily = $('fontFamily').value;
+  const digitStyle = $('digitStyle').value;
+  const shadowOn = $('shadowEnabled').checked;
 
   // Layout calculations
   const ruleAreaHeight = H * 0.25;
@@ -306,30 +359,68 @@ function draw() {
   const digitY = digitAreaTop + digitAreaHeight / 2;
 
   // Draw each digit
-  ctx.font = `bold ${digitHeight}px system-ui, -apple-system, sans-serif`;
+  ctx.font = `bold ${digitHeight}px ${fontFamily}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   for (let i = 0; i < numDigits; i++) {
-    const { digit, colorIndex } = displaySequence[i];
+    const { digit, colorIndex, rotation } = displaySequence[i];
     const x = digitSpacing * (i + 1);
+    const digitStr = digit.toString();
+    const color = COLOR_HEX[colorIndex];
 
-    // Draw white fill first (background for the digit)
-    ctx.fillStyle = '#fff';
-    ctx.lineWidth = outlineWidth + 4;
-    ctx.strokeStyle = '#fff';
-    ctx.strokeText(digit.toString(), x, digitY);
-    ctx.fillText(digit.toString(), x, digitY);
+    ctx.save();
+    ctx.translate(x, digitY);
+    if (rotation) {
+      ctx.rotate(rotation * Math.PI / 180);
+    }
 
-    // Draw colored outline
-    ctx.strokeStyle = COLOR_HEX[colorIndex];
-    ctx.lineWidth = outlineWidth;
-    ctx.lineJoin = 'round';
-    ctx.strokeText(digit.toString(), x, digitY);
+    // Apply shadow if enabled
+    if (shadowOn) {
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = +$('shadowBlur').value;
+      ctx.shadowOffsetX = +$('shadowOffsetX').value;
+      ctx.shadowOffsetY = +$('shadowOffsetY').value;
+    }
 
-    // Draw the digit fill (white) on top
-    ctx.fillStyle = '#fff';
-    ctx.fillText(digit.toString(), x, digitY);
+    if (digitStyle === 'outlined') {
+      // White fill + colored outline
+      ctx.fillStyle = '#fff';
+      ctx.lineWidth = outlineWidth + 4;
+      ctx.strokeStyle = '#fff';
+      ctx.strokeText(digitStr, 0, 0);
+      ctx.fillText(digitStr, 0, 0);
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = outlineWidth;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(digitStr, 0, 0);
+
+      ctx.fillStyle = '#fff';
+      ctx.fillText(digitStr, 0, 0);
+
+    } else if (digitStyle === 'filled') {
+      ctx.fillStyle = color;
+      ctx.fillText(digitStr, 0, 0);
+
+    } else if (digitStyle === 'filled-outline') {
+      const darkerColor = darkenHex(color, 30);
+      ctx.strokeStyle = darkerColor;
+      ctx.lineWidth = outlineWidth;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(digitStr, 0, 0);
+
+      ctx.fillStyle = color;
+      ctx.fillText(digitStr, 0, 0);
+    }
+
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    ctx.restore();
   }
 }
 
@@ -353,8 +444,16 @@ $('reset').onclick = () => {
   for (const k in DEF) {
     const el = $(k);
     if (!el) continue;
-    el.value = DEF[k];
+    if (el.type === 'checkbox') {
+      el.checked = DEF[k];
+    } else {
+      el.value = DEF[k];
+    }
   }
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if (span && span.tagName === 'SPAN') span.textContent = r.value;
+  });
   selectNewRule();
   draw();
 };
@@ -390,8 +489,20 @@ $('distractors').oninput = () => {
   draw();
 };
 
+$('fontFamily').onchange = draw;
+$('digitStyle').onchange = draw;
+$('shadowEnabled').onchange = draw;
+$('shadowBlur').oninput = draw;
+$('shadowOffsetX').oninput = draw;
+$('shadowOffsetY').oninput = draw;
+
+$('maxRotation').oninput = () => {
+  generateDisplaySequence();
+  draw();
+};
+
 document.querySelectorAll('input[type=range]').forEach(el => {
-  if (el.id !== 'distractors') {
+  if (!['distractors', 'shadowBlur', 'shadowOffsetX', 'shadowOffsetY', 'maxRotation'].includes(el.id)) {
     el.oninput = draw;
   }
 });
