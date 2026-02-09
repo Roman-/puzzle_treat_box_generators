@@ -1,0 +1,383 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Flower Petal Decoder – generator</title>
+
+<label>W <input id=w type=number value=800 min=100></label>
+<label>H <input id=h type=number value=500 min=100></label>
+
+<label>Code <input id=code type=text value=1234 pattern="\d{3,5}" maxlength=5></label>
+<button type=button data-t="code">&#x1F3B2;</button>
+
+<hr>
+
+<label>Petal length (x flower radius)
+  <input id=petalLength type=range min=0.40 max=1.00 step=0.01 value=0.70>
+</label><br>
+
+<label>Petal width (x flower radius)
+  <input id=petalWidth type=range min=0.10 max=0.80 step=0.01 value=0.50>
+</label><br>
+
+<label>Marker size (x flower radius)
+  <input id=markerSize type=range min=0.05 max=0.25 step=0.01 value=0.12>
+</label><br>
+
+<label>Color mode
+  <select id=colorMode>
+    <option value="full">Full color everywhere</option>
+    <option value="ref_only" selected>Reference colored, answers target-only</option>
+    <option value="ref_gray">Reference colored, answers all gray</option>
+    <option value="all_gray">All gray (position only)</option>
+    <option value="answers_full">Reference gray, answers colored</option>
+  </select>
+</label><br>
+
+<label>Rotation offset (degrees 0-36)
+  <input id=rotation type=range min=0 max=36 step=1 value=0>
+</label><br>
+
+<label>Reference flower size (x H)
+  <input id=refSize type=range min=0.20 max=0.50 step=0.01 value=0.35>
+</label><br>
+
+<label>Center circle size (x flower radius)
+  <input id=centerSize type=range min=0.10 max=0.35 step=0.01 value=0.20>
+</label><br>
+
+<hr>
+
+<button id=reset type=button>Restore defaults</button>
+<button id=rerender type=button>Re-render</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:4px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+
+<script>
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'flower_petal_decoder';
+
+const DEF = {
+  w: 800, h: 500, code: '1234',
+  petalLength: 0.70,
+  petalWidth: 0.50,
+  markerSize: 0.12,
+  rotation: 0,
+  refSize: 0.35,
+  centerSize: 0.20,
+  colorMode: 'ref_only'
+};
+
+const COLORS = [
+  '#d40808', // Red
+  '#0D47A1', // Blue
+  '#43A047', // Green
+  '#FDD835', // Yellow
+  '#FB8C00', // Orange
+  '#75118f', // Purple
+  '#00CED1', // Aqua
+  '#ff19d1', // Pink
+  '#6D4C41', // Brown
+  '#616161', // Grey
+];
+
+// State: shuffled color assignment (digit index -> color)
+let colorAssignment = []; // array of 10 colors, index = digit
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function regenerateColors() {
+  colorAssignment = shuffle(COLORS);
+}
+
+/* ------------------------------------------------
+   drawPetal(cx, cy, angle, innerR, outerR, petalW, color)
+   Draws a single teardrop petal radiating outward from (cx,cy).
+   ------------------------------------------------ */
+function drawPetal(cx, cy, angle, innerR, outerR, petalW, color) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  const baseY = -innerR;
+  const tipY  = -outerR;
+  const len   = outerR - innerR;
+  const widestY = baseY - len * 0.60;
+  const cpX = petalW * 1.15;
+
+  ctx.beginPath();
+  ctx.moveTo(0, baseY);
+  ctx.quadraticCurveTo(cpX, widestY, 0, tipY);
+  ctx.quadraticCurveTo(-cpX, widestY, 0, baseY);
+  ctx.closePath();
+
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+const GRAY = '#ccc';
+
+/* ------------------------------------------------
+   getColorForPetal(petalIndex, isRef, markerIndex, mode)
+   Returns the fill color for a given petal based on color mode.
+   ------------------------------------------------ */
+function getColorForPetal(petalIndex, isRef, markerIndex, mode) {
+  const real = colorAssignment[petalIndex];
+  switch (mode) {
+    case 'full':       return real;
+    case 'ref_only':   return isRef ? real : (petalIndex === markerIndex ? real : GRAY);
+    case 'ref_gray':   return isRef ? real : GRAY;
+    case 'all_gray':   return GRAY;
+    case 'answers_full': return isRef ? GRAY : real;
+    default:           return real;
+  }
+}
+
+/* ------------------------------------------------
+   drawFlower(cx, cy, radius, rotOffset, opts)
+   opts.digits: array of 10 digit labels (or null)
+   opts.markerIndex: petal index to mark (-1 for none)
+   opts.isRef: true for reference flower
+   ------------------------------------------------ */
+function drawFlower(cx, cy, radius, rotOffset, opts) {
+  const pLen   = +$('petalLength').value;
+  const pWid   = +$('petalWidth').value;
+  const mSize  = +$('markerSize').value;
+  const cSize  = +$('centerSize').value;
+  const mode   = $('colorMode').value;
+
+  const innerR   = radius * cSize;
+  const outerR   = radius * (cSize + pLen);
+  const petalW   = radius * pWid / 2;
+
+  const rotRad = rotOffset * Math.PI / 180;
+
+  // Draw 10 petals
+  for (let i = 0; i < 10; i++) {
+    const angle = rotRad + (i * 36) * Math.PI / 180;
+    const color = getColorForPetal(i, opts.isRef, opts.markerIndex, mode);
+    drawPetal(cx, cy, angle, innerR, outerR, petalW, color);
+  }
+
+  // Draw center circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+  ctx.fillStyle = '#5D4037';
+  ctx.fill();
+
+  // Inner decorative ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerR * 0.65, 0, Math.PI * 2);
+  ctx.fillStyle = '#DAA520';
+  ctx.fill();
+
+  // Draw digits or marker
+  const midR = (innerR + outerR) / 2;
+
+  if (opts.digits) {
+    const fontSize = radius * pLen * 0.35;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `bold ${fontSize}px sans-serif`;
+
+    for (let i = 0; i < 10; i++) {
+      const angle = rotRad + (i * 36) * Math.PI / 180;
+      const dx = cx + Math.sin(angle) * midR;
+      const dy = cy - Math.cos(angle) * midR;
+
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = fontSize * 0.25;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(String(opts.digits[i]), dx, dy);
+
+      ctx.fillStyle = '#000';
+      ctx.fillText(String(opts.digits[i]), dx, dy);
+    }
+  }
+
+  if (opts.markerIndex >= 0 && opts.markerIndex < 10) {
+    const i = opts.markerIndex;
+    const angle = rotRad + (i * 36) * Math.PI / 180;
+    const dx = cx + Math.sin(angle) * midR;
+    const dy = cy - Math.cos(angle) * midR;
+    const dotR = radius * mSize;
+
+    // Black marker dot
+    ctx.beginPath();
+    ctx.arc(dx, dy, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = '#000';
+    ctx.fill();
+
+    // White "?" inside the marker
+    const qFontSize = dotR * 1.4;
+    ctx.font = `bold ${qFontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('?', dx, dy);
+  }
+}
+
+/* ------------------------------------------------
+   draw()  – main render
+   ------------------------------------------------ */
+function draw() {
+  const W = +$('w').value;
+  const H = +$('h').value;
+  $('can').width = W;
+  $('can').height = H;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  const codeStr = $('code').value || '1234';
+  const digits = codeStr.split('').map(Number);
+  const N = digits.length;
+
+  const refSizeFrac = +$('refSize').value;
+  const rotOffset   = +$('rotation').value;
+
+  // Reference flower
+  const refRadius = H * refSizeFrac / 2;
+  const pLen = +$('petalLength').value;
+  const cSize = +$('centerSize').value;
+  const fullFlowerR = refRadius * (cSize + pLen); // total visual extent
+
+  const refCX = W / 2;
+  const refCY = fullFlowerR + H * 0.03; // small top margin
+
+  drawFlower(refCX, refCY, refRadius, rotOffset, {
+    digits: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    markerIndex: -1,
+    isRef: true
+  });
+
+  // Answer flowers row
+  // Available vertical space below reference flower
+  const refBottom = refCY + fullFlowerR;
+  const gap = H * 0.04;
+  const answerTop = refBottom + gap;
+  const answerAvailH = H - answerTop - H * 0.02; // bottom margin
+  const answerAvailW = W - W * 0.06; // side margins
+
+  // Size answer flowers to fit N across and within available height
+  const maxRadiusByWidth = (answerAvailW / N) / (2 * (cSize + pLen)) * 0.90;
+  const maxRadiusByHeight = answerAvailH / (2 * (cSize + pLen)) * 0.90;
+  const ansRadius = Math.min(maxRadiusByWidth, maxRadiusByHeight);
+
+  const ansFlowerExtent = ansRadius * (cSize + pLen);
+  const ansCY = answerTop + ansFlowerExtent;
+
+  // Evenly space N flowers
+  const totalNeeded = N * ansFlowerExtent * 2;
+  const spacing = answerAvailW / N;
+  const startX = W * 0.03 + spacing / 2;
+
+  for (let i = 0; i < N; i++) {
+    const digit = digits[i];
+    // Find which petal index corresponds to this digit
+    // colorAssignment[petalIndex] = color for that petal
+    // digit's petal index = digit (petal 0 has digit 0, petal 1 has digit 1, etc.)
+    const markerIndex = digit;
+
+    const ansCX = startX + i * spacing;
+    drawFlower(ansCX, ansCY, ansRadius, rotOffset, {
+      digits: null,
+      markerIndex: markerIndex,
+      isRef: false
+    });
+  }
+}
+
+/* ------------------------------------------------
+   Event handlers
+   ------------------------------------------------ */
+function randCode() {
+  const len = ($('code').value || '1234').length;
+  const max = Math.pow(10, len);
+  $('code').value = (Math.random() * max | 0).toString().padStart(len, '0');
+}
+
+// Dice button
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => {
+    if (b.dataset.t === 'code') {
+      randCode();
+      regenerateColors();
+      draw();
+    }
+  };
+});
+
+// Code input
+$('code').oninput = () => { regenerateColors(); draw(); };
+
+// Range inputs
+document.querySelectorAll('input[type=range]').forEach(el => {
+  el.oninput = draw;
+});
+
+// Select inputs
+$('colorMode').onchange = draw;
+
+// Size inputs
+$('w').oninput = draw;
+$('h').oninput = draw;
+
+// Reset
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    el.value = DEF[k];
+  }
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if (span && span.tagName === 'SPAN') span.textContent = r.value;
+  });
+  regenerateColors();
+  draw();
+};
+
+// Re-render
+$('rerender').onclick = () => {
+  regenerateColors();
+  draw();
+};
+
+// Canvas click: download, then randomize and re-render
+$('can').onclick = () => {
+  const c = $('code').value || '1234';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  regenerateColors();
+  draw();
+};
+
+// Initial render
+regenerateColors();
+draw();
+</script>
