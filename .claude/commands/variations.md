@@ -25,4 +25,4 @@ For each group, then copy-paste the puzzle's main index.html page file 3 times: 
 Implement the three groups of features on top of each file created.
 
 # Clean up
-delete files from planning/*.md
+Delete files from planning/*.md when done with _groupX.html pages.
