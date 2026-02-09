@@ -8,7 +8,7 @@
 
 <!-- === code + dice === -->
 <label>Code <input id=code type=text value=1234 pattern="\d{1,5}" maxlength=5></label>
-<button type=button data-t="code">🎲</button>
+<button type=button data-t="code">&#x1f3b2;</button>
 
 <hr>
 
@@ -21,6 +21,13 @@
   <input id=rowHeight type=range min=4 max=20 step=1 value=12>
 </label><br>
 
+<label>Layout mode
+  <select id=layoutMode>
+    <option value="rows" selected>rows</option>
+    <option value="grid">grid</option>
+  </select>
+</label><br>
+
 <label>Columns
   <select id=columns>
     <option value="auto" selected>auto</option>
@@ -29,13 +36,56 @@
   </select>
 </label><br>
 
+<label>Grid columns
+  <input id=gridCols type=range min=2 max=6 step=1 value=3>
+</label><br>
+
 <label><input id=showEmoji type=checkbox> Show emoji in row</label><br>
+
+<label>Marker shape
+  <select id=markerShape>
+    <option value="circle" selected>circle</option>
+    <option value="square">square</option>
+    <option value="triangle">triangle</option>
+    <option value="star">star</option>
+    <option value="diamond">diamond</option>
+    <option value="heart">heart</option>
+  </select>
+</label><br>
 
 <label>Dot style
   <select id=dotStyle>
     <option value="filled" selected>filled</option>
     <option value="outline">outline</option>
     <option value="none">none</option>
+  </select>
+</label><br>
+
+<label>Leader line style
+  <select id=leaderStyle>
+    <option value="dots" selected>dots</option>
+    <option value="dashes">dashes</option>
+    <option value="solid">solid</option>
+    <option value="arrows">arrows</option>
+    <option value="none">none</option>
+  </select>
+</label><br>
+
+<label>Number format
+  <select id=numberFormat>
+    <option value="plain" selected>plain</option>
+    <option value="circled">circled</option>
+    <option value="boxed">boxed</option>
+    <option value="bold-block">bold-block</option>
+  </select>
+</label><br>
+
+<label>Noise symbol style
+  <select id=noiseSymbolStyle>
+    <option value="none" selected>none</option>
+    <option value="shapes">shapes</option>
+    <option value="cards">cards</option>
+    <option value="arrows">arrows</option>
   </select>
 </label><br>
 
@@ -77,98 +127,98 @@ document.querySelectorAll('input[type=range]').forEach(r => {
 
 <script>
 const EMOJI_LEXICON = [
-  { emoji: '🐶', category: 'animals', names: { en: { singular: 'dog', count: 'dogs' }, ru: { singular: 'собака', count: 'собак' } } },
-  { emoji: '🐱', category: 'animals', names: { en: { singular: 'cat', count: 'cats' }, ru: { singular: 'кошка', count: 'кошек' } } },
-  { emoji: '🐭', category: 'animals', names: { en: { singular: 'mouse', count: 'mice' }, ru: { singular: 'мышь', count: 'мышей' } } },
-  { emoji: '🐹', category: 'animals', names: { en: { singular: 'hamster', count: 'hamsters' }, ru: { singular: 'хомяк', count: 'хомяков' } } },
-  { emoji: '🐰', category: 'animals', names: { en: { singular: 'rabbit', count: 'rabbits' }, ru: { singular: 'кролик', count: 'кроликов' } } },
-  { emoji: '🦊', category: 'animals', names: { en: { singular: 'fox', count: 'foxes' }, ru: { singular: 'лиса', count: 'лис' } } },
-  { emoji: '🐻', category: 'animals', names: { en: { singular: 'bear', count: 'bears' }, ru: { singular: 'медведь', count: 'медведей' } } },
-  { emoji: '🐼', category: 'animals', names: { en: { singular: 'panda', count: 'pandas' }, ru: { singular: 'панда', count: 'панд' } } },
-  { emoji: '🐯', category: 'animals', names: { en: { singular: 'tiger', count: 'tigers' }, ru: { singular: 'тигр', count: 'тигров' } } },
-  { emoji: '🦁', category: 'animals', names: { en: { singular: 'lion', count: 'lions' }, ru: { singular: 'лев', count: 'львов' } } },
-  { emoji: '🐮', category: 'animals', names: { en: { singular: 'cow', count: 'cows' }, ru: { singular: 'корова', count: 'коров' } } },
-  { emoji: '🐸', category: 'animals', names: { en: { singular: 'frog', count: 'frogs' }, ru: { singular: 'лягушка', count: 'лягушек' } } },
-  { emoji: '🐵', category: 'animals', names: { en: { singular: 'monkey', count: 'monkeys' }, ru: { singular: 'обезьяна', count: 'обезьян' } } },
-  { emoji: '🐔', category: 'animals', names: { en: { singular: 'chicken', count: 'chickens' }, ru: { singular: 'курица', count: 'куриц' } } },
-  { emoji: '🐧', category: 'animals', names: { en: { singular: 'penguin', count: 'penguins' }, ru: { singular: 'пингвин', count: 'пингвинов' } } },
-  { emoji: '🦆', category: 'animals', names: { en: { singular: 'duck', count: 'ducks' }, ru: { singular: 'утка', count: 'уток' } } },
-  { emoji: '🦉', category: 'animals', names: { en: { singular: 'owl', count: 'owls' }, ru: { singular: 'сова', count: 'сов' } } },
-  { emoji: '🦄', category: 'animals', names: { en: { singular: 'unicorn', count: 'unicorns' }, ru: { singular: 'единорог', count: 'единорогов' } } },
-  { emoji: '🐢', category: 'animals', names: { en: { singular: 'turtle', count: 'turtles' }, ru: { singular: 'черепаха', count: 'черепах' } } },
-  { emoji: '🐙', category: 'animals', names: { en: { singular: 'octopus', count: 'octopuses' }, ru: { singular: 'осьминог', count: 'осьминогов' } } },
-  { emoji: '🦋', category: 'animals', names: { en: { singular: 'butterfly', count: 'butterflies' }, ru: { singular: 'бабочка', count: 'бабочек' } } },
-  { emoji: '🐝', category: 'animals', names: { en: { singular: 'bee', count: 'bees' }, ru: { singular: 'пчела', count: 'пчёл' } } },
-  { emoji: '🐌', category: 'animals', names: { en: { singular: 'snail', count: 'snails' }, ru: { singular: 'улитка', count: 'улиток' } } },
-  { emoji: '🐠', category: 'animals', names: { en: { singular: 'fish', count: 'fish' }, ru: { singular: 'рыба', count: 'рыб' } } },
-  { emoji: '🚗', category: 'vehicles', names: { en: { singular: 'car', count: 'cars' }, ru: { singular: 'машина', count: 'машин' } } },
-  { emoji: '🚌', category: 'vehicles', names: { en: { singular: 'bus', count: 'buses' }, ru: { singular: 'автобус', count: 'автобусов' } } },
-  { emoji: '🚜', category: 'vehicles', names: { en: { singular: 'tractor', count: 'tractors' }, ru: { singular: 'трактор', count: 'тракторов' } } },
-  { emoji: '🚲', category: 'vehicles', names: { en: { singular: 'bicycle', count: 'bicycles' }, ru: { singular: 'велосипед', count: 'велосипедов' } } },
-  { emoji: '🚆', category: 'vehicles', names: { en: { singular: 'train', count: 'trains' }, ru: { singular: 'поезд', count: 'поездов' } } },
-  { emoji: '🚁', category: 'vehicles', names: { en: { singular: 'helicopter', count: 'helicopters' }, ru: { singular: 'вертолёт', count: 'вертолётов' } } },
-  { emoji: '⛵', category: 'vehicles', names: { en: { singular: 'sailboat', count: 'sailboats' }, ru: { singular: 'парусник', count: 'парусников' } } },
-  { emoji: '🚀', category: 'vehicles', names: { en: { singular: 'rocket', count: 'rockets' }, ru: { singular: 'ракета', count: 'ракет' } } },
-  { emoji: '🚕', category: 'vehicles', names: { en: { singular: 'taxi', count: 'taxis' }, ru: { singular: 'такси', count: 'такси' } } },
-  { emoji: '🚙', category: 'vehicles', names: { en: { singular: 'SUV', count: 'SUVs' }, ru: { singular: 'внедорожник', count: 'внедорожников' } } },
-  { emoji: '🍎', category: 'food', names: { en: { singular: 'apple', count: 'apples' }, ru: { singular: 'яблоко', count: 'яблок' } } },
-  { emoji: '🍐', category: 'food', names: { en: { singular: 'pear', count: 'pears' }, ru: { singular: 'груша', count: 'груш' } } },
-  { emoji: '🍊', category: 'food', names: { en: { singular: 'orange', count: 'oranges' }, ru: { singular: 'апельсин', count: 'апельсинов' } } },
-  { emoji: '🍋', category: 'food', names: { en: { singular: 'lemon', count: 'lemons' }, ru: { singular: 'лимон', count: 'лимонов' } } },
-  { emoji: '🍌', category: 'food', names: { en: { singular: 'banana', count: 'bananas' }, ru: { singular: 'банан', count: 'бананов' } } },
-  { emoji: '🍉', category: 'food', names: { en: { singular: 'watermelon', count: 'watermelons' }, ru: { singular: 'арбуз', count: 'арбузов' } } },
-  { emoji: '🍇', category: 'food', names: { en: { singular: 'grape', count: 'grapes' }, ru: { singular: 'виноградина', count: 'виноградин' } } },
-  { emoji: '🍓', category: 'food', names: { en: { singular: 'strawberry', count: 'strawberries' }, ru: { singular: 'клубника', count: 'клубник' } } },
-  { emoji: '🍒', category: 'food', names: { en: { singular: 'cherry', count: 'cherries' }, ru: { singular: 'вишня', count: 'вишен' } } },
-  { emoji: '🍍', category: 'food', names: { en: { singular: 'pineapple', count: 'pineapples' }, ru: { singular: 'ананас', count: 'ананасов' } } },
-  { emoji: '🥝', category: 'food', names: { en: { singular: 'kiwi', count: 'kiwis' }, ru: { singular: 'киви', count: 'киви' } } },
-  { emoji: '🥕', category: 'food', names: { en: { singular: 'carrot', count: 'carrots' }, ru: { singular: 'морковка', count: 'морковок' } } },
-  { emoji: '🌽', category: 'food', names: { en: { singular: 'corn cob', count: 'corn cobs' }, ru: { singular: 'початок кукурузы', count: 'початков кукурузы' } } },
-  { emoji: '🍅', category: 'food', names: { en: { singular: 'tomato', count: 'tomatoes' }, ru: { singular: 'помидор', count: 'помидоров' } } },
-  { emoji: '🥔', category: 'food', names: { en: { singular: 'potato', count: 'potatoes' }, ru: { singular: 'картофелина', count: 'картофелин' } } },
-  { emoji: '🥦', category: 'food', names: { en: { singular: 'broccoli', count: 'broccoli' }, ru: { singular: 'брокколи', count: 'брокколи' } } },
-  { emoji: '🥒', category: 'food', names: { en: { singular: 'cucumber', count: 'cucumbers' }, ru: { singular: 'огурец', count: 'огурцов' } } },
-  { emoji: '🍕', category: 'food', names: { en: { singular: 'pizza', count: 'pizzas' }, ru: { singular: 'пицца', count: 'пицц' } } },
-  { emoji: '🍔', category: 'food', names: { en: { singular: 'burger', count: 'burgers' }, ru: { singular: 'бургер', count: 'бургеров' } } },
-  { emoji: '🍟', category: 'food', names: { en: { singular: 'fries', count: 'fries' }, ru: { singular: 'картошка фри', count: 'порций картошки фри' } } },
-  { emoji: '🌭', category: 'food', names: { en: { singular: 'hot dog', count: 'hot dogs' }, ru: { singular: 'хот-дог', count: 'хот-догов' } } },
-  { emoji: '🌮', category: 'food', names: { en: { singular: 'taco', count: 'tacos' }, ru: { singular: 'тако', count: 'тако' } } },
-  { emoji: '🌯', category: 'food', names: { en: { singular: 'burrito', count: 'burritos' }, ru: { singular: 'буррито', count: 'буррито' } } },
-  { emoji: '🍿', category: 'food', names: { en: { singular: 'popcorn', count: 'popcorn buckets' }, ru: { singular: 'попкорн', count: 'вёдер попкорна' } } },
-  { emoji: '🍪', category: 'food', names: { en: { singular: 'cookie', count: 'cookies' }, ru: { singular: 'печенька', count: 'печенек' } } },
-  { emoji: '🍩', category: 'food', names: { en: { singular: 'donut', count: 'donuts' }, ru: { singular: 'пончик', count: 'пончиков' } } },
-  { emoji: '🧁', category: 'food', names: { en: { singular: 'cupcake', count: 'cupcakes' }, ru: { singular: 'капкейк', count: 'капкейков' } } },
-  { emoji: '🍰', category: 'food', names: { en: { singular: 'cake', count: 'cakes' }, ru: { singular: 'торт', count: 'тортов' } } },
-  { emoji: '🍫', category: 'food', names: { en: { singular: 'chocolate bar', count: 'chocolate bars' }, ru: { singular: 'шоколадка', count: 'шоколадок' } } },
-  { emoji: '🍭', category: 'food', names: { en: { singular: 'lollipop', count: 'lollipops' }, ru: { singular: 'леденец', count: 'леденцов' } } },
-  { emoji: '🍨', category: 'food', names: { en: { singular: 'ice cream', count: 'ice creams' }, ru: { singular: 'мороженое', count: 'порций мороженого' } } },
-  { emoji: '🌸', category: 'nature', names: { en: { singular: 'flower', count: 'flowers' }, ru: { singular: 'цветок', count: 'цветов' } } },
-  { emoji: '🍀', category: 'nature', names: { en: { singular: 'clover', count: 'clovers' }, ru: { singular: 'клевер', count: 'клеверов' } } },
-  { emoji: '🌴', category: 'nature', names: { en: { singular: 'palm tree', count: 'palm trees' }, ru: { singular: 'пальма', count: 'пальм' } } },
-  { emoji: '🌵', category: 'nature', names: { en: { singular: 'cactus', count: 'cactuses' }, ru: { singular: 'кактус', count: 'кактусов' } } },
-  { emoji: '🌈', category: 'nature', names: { en: { singular: 'rainbow', count: 'rainbows' }, ru: { singular: 'радуга', count: 'радуг' } } },
-  { emoji: '🌙', category: 'nature', names: { en: { singular: 'moon', count: 'moons' }, ru: { singular: 'луна', count: 'лун' } } },
-  { emoji: '🌞', category: 'nature', names: { en: { singular: 'sun', count: 'suns' }, ru: { singular: 'солнце', count: 'солнц' } } },
-  { emoji: '🌊', category: 'nature', names: { en: { singular: 'wave', count: 'waves' }, ru: { singular: 'волна', count: 'волн' } } },
-  { emoji: '🏀', category: 'sports', names: { en: { singular: 'basketball', count: 'basketballs' }, ru: { singular: 'баскетбольный мяч', count: 'баскетбольных мячей' } } },
-  { emoji: '🎾', category: 'sports', names: { en: { singular: 'tennis ball', count: 'tennis balls' }, ru: { singular: 'теннисный мяч', count: 'теннисных мячей' } } },
-  { emoji: '🏐', category: 'sports', names: { en: { singular: 'volleyball', count: 'volleyballs' }, ru: { singular: 'волейбольный мяч', count: 'волейбольных мячей' } } },
-  { emoji: '🏂', category: 'sports', names: { en: { singular: 'snowboarder', count: 'snowboarders' }, ru: { singular: 'сноубордист', count: 'сноубордистов' } } },
-  { emoji: '🛹', category: 'sports', names: { en: { singular: 'skateboard', count: 'skateboards' }, ru: { singular: 'скейтборд', count: 'скейтбордов' } } },
-  { emoji: '🎯', category: 'sports', names: { en: { singular: 'target', count: 'targets' }, ru: { singular: 'мишень', count: 'мишеней' } } },
-  { emoji: '🏆', category: 'sports', names: { en: { singular: 'trophy', count: 'trophies' }, ru: { singular: 'кубок', count: 'кубков' } } },
-  { emoji: '🎁', category: 'objects', names: { en: { singular: 'gift', count: 'gifts' }, ru: { singular: 'подарок', count: 'подарков' } } },
-  { emoji: '🎈', category: 'objects', names: { en: { singular: 'balloon', count: 'balloons' }, ru: { singular: 'шарик', count: 'шариков' } } },
-  { emoji: '🧸', category: 'objects', names: { en: { singular: 'teddy bear', count: 'teddy bears' }, ru: { singular: 'плюшевый мишка', count: 'плюшевых мишек' } } },
-  { emoji: '📘', category: 'objects', names: { en: { singular: 'book', count: 'books' }, ru: { singular: 'книга', count: 'книг' } } },
-  { emoji: '📏', category: 'objects', names: { en: { singular: 'ruler', count: 'rulers' }, ru: { singular: 'линейка', count: 'линеек' } } },
-  { emoji: '📎', category: 'objects', names: { en: { singular: 'paperclip', count: 'paperclips' }, ru: { singular: 'скрепка', count: 'скрепок' } } },
-  { emoji: '🔍', category: 'objects', names: { en: { singular: 'magnifying glass', count: 'magnifying glasses' }, ru: { singular: 'лупа', count: 'луп' } } },
-  { emoji: '🔒', category: 'objects', names: { en: { singular: 'lock', count: 'locks' }, ru: { singular: 'замок', count: 'замков' } } },
-  { emoji: '⏰', category: 'objects', names: { en: { singular: 'alarm clock', count: 'alarm clocks' }, ru: { singular: 'будильник', count: 'будильников' } } },
-  { emoji: '🧭', category: 'objects', names: { en: { singular: 'compass', count: 'compasses' }, ru: { singular: 'компас', count: 'компасов' } } },
-  { emoji: '🔑', category: 'objects', names: { en: { singular: 'key', count: 'keys' }, ru: { singular: 'ключ', count: 'ключей' } } },
-  { emoji: '📝', category: 'objects', names: { en: { singular: 'memo', count: 'memos' }, ru: { singular: 'записка', count: 'записок' } } },
+  { emoji: '\u{1F436}', category: 'animals', names: { en: { singular: 'dog', count: 'dogs' }, ru: { singular: '\u0441\u043E\u0431\u0430\u043A\u0430', count: '\u0441\u043E\u0431\u0430\u043A' } } },
+  { emoji: '\u{1F431}', category: 'animals', names: { en: { singular: 'cat', count: 'cats' }, ru: { singular: '\u043A\u043E\u0448\u043A\u0430', count: '\u043A\u043E\u0448\u0435\u043A' } } },
+  { emoji: '\u{1F42D}', category: 'animals', names: { en: { singular: 'mouse', count: 'mice' }, ru: { singular: '\u043C\u044B\u0448\u044C', count: '\u043C\u044B\u0448\u0435\u0439' } } },
+  { emoji: '\u{1F439}', category: 'animals', names: { en: { singular: 'hamster', count: 'hamsters' }, ru: { singular: '\u0445\u043E\u043C\u044F\u043A', count: '\u0445\u043E\u043C\u044F\u043A\u043E\u0432' } } },
+  { emoji: '\u{1F430}', category: 'animals', names: { en: { singular: 'rabbit', count: 'rabbits' }, ru: { singular: '\u043A\u0440\u043E\u043B\u0438\u043A', count: '\u043A\u0440\u043E\u043B\u0438\u043A\u043E\u0432' } } },
+  { emoji: '\u{1F98A}', category: 'animals', names: { en: { singular: 'fox', count: 'foxes' }, ru: { singular: '\u043B\u0438\u0441\u0430', count: '\u043B\u0438\u0441' } } },
+  { emoji: '\u{1F43B}', category: 'animals', names: { en: { singular: 'bear', count: 'bears' }, ru: { singular: '\u043C\u0435\u0434\u0432\u0435\u0434\u044C', count: '\u043C\u0435\u0434\u0432\u0435\u0434\u0435\u0439' } } },
+  { emoji: '\u{1F43C}', category: 'animals', names: { en: { singular: 'panda', count: 'pandas' }, ru: { singular: '\u043F\u0430\u043D\u0434\u0430', count: '\u043F\u0430\u043D\u0434' } } },
+  { emoji: '\u{1F42F}', category: 'animals', names: { en: { singular: 'tiger', count: 'tigers' }, ru: { singular: '\u0442\u0438\u0433\u0440', count: '\u0442\u0438\u0433\u0440\u043E\u0432' } } },
+  { emoji: '\u{1F981}', category: 'animals', names: { en: { singular: 'lion', count: 'lions' }, ru: { singular: '\u043B\u0435\u0432', count: '\u043B\u044C\u0432\u043E\u0432' } } },
+  { emoji: '\u{1F42E}', category: 'animals', names: { en: { singular: 'cow', count: 'cows' }, ru: { singular: '\u043A\u043E\u0440\u043E\u0432\u0430', count: '\u043A\u043E\u0440\u043E\u0432' } } },
+  { emoji: '\u{1F438}', category: 'animals', names: { en: { singular: 'frog', count: 'frogs' }, ru: { singular: '\u043B\u044F\u0433\u0443\u0448\u043A\u0430', count: '\u043B\u044F\u0433\u0443\u0448\u0435\u043A' } } },
+  { emoji: '\u{1F435}', category: 'animals', names: { en: { singular: 'monkey', count: 'monkeys' }, ru: { singular: '\u043E\u0431\u0435\u0437\u044C\u044F\u043D\u0430', count: '\u043E\u0431\u0435\u0437\u044C\u044F\u043D' } } },
+  { emoji: '\u{1F414}', category: 'animals', names: { en: { singular: 'chicken', count: 'chickens' }, ru: { singular: '\u043A\u0443\u0440\u0438\u0446\u0430', count: '\u043A\u0443\u0440\u0438\u0446' } } },
+  { emoji: '\u{1F427}', category: 'animals', names: { en: { singular: 'penguin', count: 'penguins' }, ru: { singular: '\u043F\u0438\u043D\u0433\u0432\u0438\u043D', count: '\u043F\u0438\u043D\u0433\u0432\u0438\u043D\u043E\u0432' } } },
+  { emoji: '\u{1F986}', category: 'animals', names: { en: { singular: 'duck', count: 'ducks' }, ru: { singular: '\u0443\u0442\u043A\u0430', count: '\u0443\u0442\u043E\u043A' } } },
+  { emoji: '\u{1F989}', category: 'animals', names: { en: { singular: 'owl', count: 'owls' }, ru: { singular: '\u0441\u043E\u0432\u0430', count: '\u0441\u043E\u0432' } } },
+  { emoji: '\u{1F984}', category: 'animals', names: { en: { singular: 'unicorn', count: 'unicorns' }, ru: { singular: '\u0435\u0434\u0438\u043D\u043E\u0440\u043E\u0433', count: '\u0435\u0434\u0438\u043D\u043E\u0440\u043E\u0433\u043E\u0432' } } },
+  { emoji: '\u{1F422}', category: 'animals', names: { en: { singular: 'turtle', count: 'turtles' }, ru: { singular: '\u0447\u0435\u0440\u0435\u043F\u0430\u0445\u0430', count: '\u0447\u0435\u0440\u0435\u043F\u0430\u0445' } } },
+  { emoji: '\u{1F419}', category: 'animals', names: { en: { singular: 'octopus', count: 'octopuses' }, ru: { singular: '\u043E\u0441\u044C\u043C\u0438\u043D\u043E\u0433', count: '\u043E\u0441\u044C\u043C\u0438\u043D\u043E\u0433\u043E\u0432' } } },
+  { emoji: '\u{1F98B}', category: 'animals', names: { en: { singular: 'butterfly', count: 'butterflies' }, ru: { singular: '\u0431\u0430\u0431\u043E\u0447\u043A\u0430', count: '\u0431\u0430\u0431\u043E\u0447\u0435\u043A' } } },
+  { emoji: '\u{1F41D}', category: 'animals', names: { en: { singular: 'bee', count: 'bees' }, ru: { singular: '\u043F\u0447\u0435\u043B\u0430', count: '\u043F\u0447\u0451\u043B' } } },
+  { emoji: '\u{1F40C}', category: 'animals', names: { en: { singular: 'snail', count: 'snails' }, ru: { singular: '\u0443\u043B\u0438\u0442\u043A\u0430', count: '\u0443\u043B\u0438\u0442\u043E\u043A' } } },
+  { emoji: '\u{1F420}', category: 'animals', names: { en: { singular: 'fish', count: 'fish' }, ru: { singular: '\u0440\u044B\u0431\u0430', count: '\u0440\u044B\u0431' } } },
+  { emoji: '\u{1F697}', category: 'vehicles', names: { en: { singular: 'car', count: 'cars' }, ru: { singular: '\u043C\u0430\u0448\u0438\u043D\u0430', count: '\u043C\u0430\u0448\u0438\u043D' } } },
+  { emoji: '\u{1F68C}', category: 'vehicles', names: { en: { singular: 'bus', count: 'buses' }, ru: { singular: '\u0430\u0432\u0442\u043E\u0431\u0443\u0441', count: '\u0430\u0432\u0442\u043E\u0431\u0443\u0441\u043E\u0432' } } },
+  { emoji: '\u{1F69C}', category: 'vehicles', names: { en: { singular: 'tractor', count: 'tractors' }, ru: { singular: '\u0442\u0440\u0430\u043A\u0442\u043E\u0440', count: '\u0442\u0440\u0430\u043A\u0442\u043E\u0440\u043E\u0432' } } },
+  { emoji: '\u{1F6B2}', category: 'vehicles', names: { en: { singular: 'bicycle', count: 'bicycles' }, ru: { singular: '\u0432\u0435\u043B\u043E\u0441\u0438\u043F\u0435\u0434', count: '\u0432\u0435\u043B\u043E\u0441\u0438\u043F\u0435\u0434\u043E\u0432' } } },
+  { emoji: '\u{1F686}', category: 'vehicles', names: { en: { singular: 'train', count: 'trains' }, ru: { singular: '\u043F\u043E\u0435\u0437\u0434', count: '\u043F\u043E\u0435\u0437\u0434\u043E\u0432' } } },
+  { emoji: '\u{1F681}', category: 'vehicles', names: { en: { singular: 'helicopter', count: 'helicopters' }, ru: { singular: '\u0432\u0435\u0440\u0442\u043E\u043B\u0451\u0442', count: '\u0432\u0435\u0440\u0442\u043E\u043B\u0451\u0442\u043E\u0432' } } },
+  { emoji: '\u26F5', category: 'vehicles', names: { en: { singular: 'sailboat', count: 'sailboats' }, ru: { singular: '\u043F\u0430\u0440\u0443\u0441\u043D\u0438\u043A', count: '\u043F\u0430\u0440\u0443\u0441\u043D\u0438\u043A\u043E\u0432' } } },
+  { emoji: '\u{1F680}', category: 'vehicles', names: { en: { singular: 'rocket', count: 'rockets' }, ru: { singular: '\u0440\u0430\u043A\u0435\u0442\u0430', count: '\u0440\u0430\u043A\u0435\u0442' } } },
+  { emoji: '\u{1F695}', category: 'vehicles', names: { en: { singular: 'taxi', count: 'taxis' }, ru: { singular: '\u0442\u0430\u043A\u0441\u0438', count: '\u0442\u0430\u043A\u0441\u0438' } } },
+  { emoji: '\u{1F699}', category: 'vehicles', names: { en: { singular: 'SUV', count: 'SUVs' }, ru: { singular: '\u0432\u043D\u0435\u0434\u043E\u0440\u043E\u0436\u043D\u0438\u043A', count: '\u0432\u043D\u0435\u0434\u043E\u0440\u043E\u0436\u043D\u0438\u043A\u043E\u0432' } } },
+  { emoji: '\u{1F34E}', category: 'food', names: { en: { singular: 'apple', count: 'apples' }, ru: { singular: '\u044F\u0431\u043B\u043E\u043A\u043E', count: '\u044F\u0431\u043B\u043E\u043A' } } },
+  { emoji: '\u{1F350}', category: 'food', names: { en: { singular: 'pear', count: 'pears' }, ru: { singular: '\u0433\u0440\u0443\u0448\u0430', count: '\u0433\u0440\u0443\u0448' } } },
+  { emoji: '\u{1F34A}', category: 'food', names: { en: { singular: 'orange', count: 'oranges' }, ru: { singular: '\u0430\u043F\u0435\u043B\u044C\u0441\u0438\u043D', count: '\u0430\u043F\u0435\u043B\u044C\u0441\u0438\u043D\u043E\u0432' } } },
+  { emoji: '\u{1F34B}', category: 'food', names: { en: { singular: 'lemon', count: 'lemons' }, ru: { singular: '\u043B\u0438\u043C\u043E\u043D', count: '\u043B\u0438\u043C\u043E\u043D\u043E\u0432' } } },
+  { emoji: '\u{1F34C}', category: 'food', names: { en: { singular: 'banana', count: 'bananas' }, ru: { singular: '\u0431\u0430\u043D\u0430\u043D', count: '\u0431\u0430\u043D\u0430\u043D\u043E\u0432' } } },
+  { emoji: '\u{1F349}', category: 'food', names: { en: { singular: 'watermelon', count: 'watermelons' }, ru: { singular: '\u0430\u0440\u0431\u0443\u0437', count: '\u0430\u0440\u0431\u0443\u0437\u043E\u0432' } } },
+  { emoji: '\u{1F347}', category: 'food', names: { en: { singular: 'grape', count: 'grapes' }, ru: { singular: '\u0432\u0438\u043D\u043E\u0433\u0440\u0430\u0434\u0438\u043D\u0430', count: '\u0432\u0438\u043D\u043E\u0433\u0440\u0430\u0434\u0438\u043D' } } },
+  { emoji: '\u{1F353}', category: 'food', names: { en: { singular: 'strawberry', count: 'strawberries' }, ru: { singular: '\u043A\u043B\u0443\u0431\u043D\u0438\u043A\u0430', count: '\u043A\u043B\u0443\u0431\u043D\u0438\u043A' } } },
+  { emoji: '\u{1F352}', category: 'food', names: { en: { singular: 'cherry', count: 'cherries' }, ru: { singular: '\u0432\u0438\u0448\u043D\u044F', count: '\u0432\u0438\u0448\u0435\u043D' } } },
+  { emoji: '\u{1F34D}', category: 'food', names: { en: { singular: 'pineapple', count: 'pineapples' }, ru: { singular: '\u0430\u043D\u0430\u043D\u0430\u0441', count: '\u0430\u043D\u0430\u043D\u0430\u0441\u043E\u0432' } } },
+  { emoji: '\u{1F95D}', category: 'food', names: { en: { singular: 'kiwi', count: 'kiwis' }, ru: { singular: '\u043A\u0438\u0432\u0438', count: '\u043A\u0438\u0432\u0438' } } },
+  { emoji: '\u{1F955}', category: 'food', names: { en: { singular: 'carrot', count: 'carrots' }, ru: { singular: '\u043C\u043E\u0440\u043A\u043E\u0432\u043A\u0430', count: '\u043C\u043E\u0440\u043A\u043E\u0432\u043E\u043A' } } },
+  { emoji: '\u{1F33D}', category: 'food', names: { en: { singular: 'corn cob', count: 'corn cobs' }, ru: { singular: '\u043F\u043E\u0447\u0430\u0442\u043E\u043A \u043A\u0443\u043A\u0443\u0440\u0443\u0437\u044B', count: '\u043F\u043E\u0447\u0430\u0442\u043A\u043E\u0432 \u043A\u0443\u043A\u0443\u0440\u0443\u0437\u044B' } } },
+  { emoji: '\u{1F345}', category: 'food', names: { en: { singular: 'tomato', count: 'tomatoes' }, ru: { singular: '\u043F\u043E\u043C\u0438\u0434\u043E\u0440', count: '\u043F\u043E\u043C\u0438\u0434\u043E\u0440\u043E\u0432' } } },
+  { emoji: '\u{1F954}', category: 'food', names: { en: { singular: 'potato', count: 'potatoes' }, ru: { singular: '\u043A\u0430\u0440\u0442\u043E\u0444\u0435\u043B\u0438\u043D\u0430', count: '\u043A\u0430\u0440\u0442\u043E\u0444\u0435\u043B\u0438\u043D' } } },
+  { emoji: '\u{1F966}', category: 'food', names: { en: { singular: 'broccoli', count: 'broccoli' }, ru: { singular: '\u0431\u0440\u043E\u043A\u043A\u043E\u043B\u0438', count: '\u0431\u0440\u043E\u043A\u043A\u043E\u043B\u0438' } } },
+  { emoji: '\u{1F952}', category: 'food', names: { en: { singular: 'cucumber', count: 'cucumbers' }, ru: { singular: '\u043E\u0433\u0443\u0440\u0435\u0446', count: '\u043E\u0433\u0443\u0440\u0446\u043E\u0432' } } },
+  { emoji: '\u{1F355}', category: 'food', names: { en: { singular: 'pizza', count: 'pizzas' }, ru: { singular: '\u043F\u0438\u0446\u0446\u0430', count: '\u043F\u0438\u0446\u0446' } } },
+  { emoji: '\u{1F354}', category: 'food', names: { en: { singular: 'burger', count: 'burgers' }, ru: { singular: '\u0431\u0443\u0440\u0433\u0435\u0440', count: '\u0431\u0443\u0440\u0433\u0435\u0440\u043E\u0432' } } },
+  { emoji: '\u{1F35F}', category: 'food', names: { en: { singular: 'fries', count: 'fries' }, ru: { singular: '\u043A\u0430\u0440\u0442\u043E\u0448\u043A\u0430 \u0444\u0440\u0438', count: '\u043F\u043E\u0440\u0446\u0438\u0439 \u043A\u0430\u0440\u0442\u043E\u0448\u043A\u0438 \u0444\u0440\u0438' } } },
+  { emoji: '\u{1F32D}', category: 'food', names: { en: { singular: 'hot dog', count: 'hot dogs' }, ru: { singular: '\u0445\u043E\u0442-\u0434\u043E\u0433', count: '\u0445\u043E\u0442-\u0434\u043E\u0433\u043E\u0432' } } },
+  { emoji: '\u{1F32E}', category: 'food', names: { en: { singular: 'taco', count: 'tacos' }, ru: { singular: '\u0442\u0430\u043A\u043E', count: '\u0442\u0430\u043A\u043E' } } },
+  { emoji: '\u{1F32F}', category: 'food', names: { en: { singular: 'burrito', count: 'burritos' }, ru: { singular: '\u0431\u0443\u0440\u0440\u0438\u0442\u043E', count: '\u0431\u0443\u0440\u0440\u0438\u0442\u043E' } } },
+  { emoji: '\u{1F37F}', category: 'food', names: { en: { singular: 'popcorn', count: 'popcorn buckets' }, ru: { singular: '\u043F\u043E\u043F\u043A\u043E\u0440\u043D', count: '\u0432\u0451\u0434\u0435\u0440 \u043F\u043E\u043F\u043A\u043E\u0440\u043D\u0430' } } },
+  { emoji: '\u{1F36A}', category: 'food', names: { en: { singular: 'cookie', count: 'cookies' }, ru: { singular: '\u043F\u0435\u0447\u0435\u043D\u044C\u043A\u0430', count: '\u043F\u0435\u0447\u0435\u043D\u0435\u043A' } } },
+  { emoji: '\u{1F369}', category: 'food', names: { en: { singular: 'donut', count: 'donuts' }, ru: { singular: '\u043F\u043E\u043D\u0447\u0438\u043A', count: '\u043F\u043E\u043D\u0447\u0438\u043A\u043E\u0432' } } },
+  { emoji: '\u{1F9C1}', category: 'food', names: { en: { singular: 'cupcake', count: 'cupcakes' }, ru: { singular: '\u043A\u0430\u043F\u043A\u0435\u0439\u043A', count: '\u043A\u0430\u043F\u043A\u0435\u0439\u043A\u043E\u0432' } } },
+  { emoji: '\u{1F370}', category: 'food', names: { en: { singular: 'cake', count: 'cakes' }, ru: { singular: '\u0442\u043E\u0440\u0442', count: '\u0442\u043E\u0440\u0442\u043E\u0432' } } },
+  { emoji: '\u{1F36B}', category: 'food', names: { en: { singular: 'chocolate bar', count: 'chocolate bars' }, ru: { singular: '\u0448\u043E\u043A\u043E\u043B\u0430\u0434\u043A\u0430', count: '\u0448\u043E\u043A\u043E\u043B\u0430\u0434\u043E\u043A' } } },
+  { emoji: '\u{1F36D}', category: 'food', names: { en: { singular: 'lollipop', count: 'lollipops' }, ru: { singular: '\u043B\u0435\u0434\u0435\u043D\u0435\u0446', count: '\u043B\u0435\u0434\u0435\u043D\u0446\u043E\u0432' } } },
+  { emoji: '\u{1F368}', category: 'food', names: { en: { singular: 'ice cream', count: 'ice creams' }, ru: { singular: '\u043C\u043E\u0440\u043E\u0436\u0435\u043D\u043E\u0435', count: '\u043F\u043E\u0440\u0446\u0438\u0439 \u043C\u043E\u0440\u043E\u0436\u0435\u043D\u043E\u0433\u043E' } } },
+  { emoji: '\u{1F338}', category: 'nature', names: { en: { singular: 'flower', count: 'flowers' }, ru: { singular: '\u0446\u0432\u0435\u0442\u043E\u043A', count: '\u0446\u0432\u0435\u0442\u043E\u0432' } } },
+  { emoji: '\u{1F340}', category: 'nature', names: { en: { singular: 'clover', count: 'clovers' }, ru: { singular: '\u043A\u043B\u0435\u0432\u0435\u0440', count: '\u043A\u043B\u0435\u0432\u0435\u0440\u043E\u0432' } } },
+  { emoji: '\u{1F334}', category: 'nature', names: { en: { singular: 'palm tree', count: 'palm trees' }, ru: { singular: '\u043F\u0430\u043B\u044C\u043C\u0430', count: '\u043F\u0430\u043B\u044C\u043C' } } },
+  { emoji: '\u{1F335}', category: 'nature', names: { en: { singular: 'cactus', count: 'cactuses' }, ru: { singular: '\u043A\u0430\u043A\u0442\u0443\u0441', count: '\u043A\u0430\u043A\u0442\u0443\u0441\u043E\u0432' } } },
+  { emoji: '\u{1F308}', category: 'nature', names: { en: { singular: 'rainbow', count: 'rainbows' }, ru: { singular: '\u0440\u0430\u0434\u0443\u0433\u0430', count: '\u0440\u0430\u0434\u0443\u0433' } } },
+  { emoji: '\u{1F319}', category: 'nature', names: { en: { singular: 'moon', count: 'moons' }, ru: { singular: '\u043B\u0443\u043D\u0430', count: '\u043B\u0443\u043D' } } },
+  { emoji: '\u{1F31E}', category: 'nature', names: { en: { singular: 'sun', count: 'suns' }, ru: { singular: '\u0441\u043E\u043B\u043D\u0446\u0435', count: '\u0441\u043E\u043B\u043D\u0446' } } },
+  { emoji: '\u{1F30A}', category: 'nature', names: { en: { singular: 'wave', count: 'waves' }, ru: { singular: '\u0432\u043E\u043B\u043D\u0430', count: '\u0432\u043E\u043B\u043D' } } },
+  { emoji: '\u{1F3C0}', category: 'sports', names: { en: { singular: 'basketball', count: 'basketballs' }, ru: { singular: '\u0431\u0430\u0441\u043A\u0435\u0442\u0431\u043E\u043B\u044C\u043D\u044B\u0439 \u043C\u044F\u0447', count: '\u0431\u0430\u0441\u043A\u0435\u0442\u0431\u043E\u043B\u044C\u043D\u044B\u0445 \u043C\u044F\u0447\u0435\u0439' } } },
+  { emoji: '\u{1F3BE}', category: 'sports', names: { en: { singular: 'tennis ball', count: 'tennis balls' }, ru: { singular: '\u0442\u0435\u043D\u043D\u0438\u0441\u043D\u044B\u0439 \u043C\u044F\u0447', count: '\u0442\u0435\u043D\u043D\u0438\u0441\u043D\u044B\u0445 \u043C\u044F\u0447\u0435\u0439' } } },
+  { emoji: '\u{1F3D0}', category: 'sports', names: { en: { singular: 'volleyball', count: 'volleyballs' }, ru: { singular: '\u0432\u043E\u043B\u0435\u0439\u0431\u043E\u043B\u044C\u043D\u044B\u0439 \u043C\u044F\u0447', count: '\u0432\u043E\u043B\u0435\u0439\u0431\u043E\u043B\u044C\u043D\u044B\u0445 \u043C\u044F\u0447\u0435\u0439' } } },
+  { emoji: '\u{1F3C2}', category: 'sports', names: { en: { singular: 'snowboarder', count: 'snowboarders' }, ru: { singular: '\u0441\u043D\u043E\u0443\u0431\u043E\u0440\u0434\u0438\u0441\u0442', count: '\u0441\u043D\u043E\u0443\u0431\u043E\u0440\u0434\u0438\u0441\u0442\u043E\u0432' } } },
+  { emoji: '\u{1F6F9}', category: 'sports', names: { en: { singular: 'skateboard', count: 'skateboards' }, ru: { singular: '\u0441\u043A\u0435\u0439\u0442\u0431\u043E\u0440\u0434', count: '\u0441\u043A\u0435\u0439\u0442\u0431\u043E\u0440\u0434\u043E\u0432' } } },
+  { emoji: '\u{1F3AF}', category: 'sports', names: { en: { singular: 'target', count: 'targets' }, ru: { singular: '\u043C\u0438\u0448\u0435\u043D\u044C', count: '\u043C\u0438\u0448\u0435\u043D\u0435\u0439' } } },
+  { emoji: '\u{1F3C6}', category: 'sports', names: { en: { singular: 'trophy', count: 'trophies' }, ru: { singular: '\u043A\u0443\u0431\u043E\u043A', count: '\u043A\u0443\u0431\u043A\u043E\u0432' } } },
+  { emoji: '\u{1F381}', category: 'objects', names: { en: { singular: 'gift', count: 'gifts' }, ru: { singular: '\u043F\u043E\u0434\u0430\u0440\u043E\u043A', count: '\u043F\u043E\u0434\u0430\u0440\u043A\u043E\u0432' } } },
+  { emoji: '\u{1F388}', category: 'objects', names: { en: { singular: 'balloon', count: 'balloons' }, ru: { singular: '\u0448\u0430\u0440\u0438\u043A', count: '\u0448\u0430\u0440\u0438\u043A\u043E\u0432' } } },
+  { emoji: '\u{1F9F8}', category: 'objects', names: { en: { singular: 'teddy bear', count: 'teddy bears' }, ru: { singular: '\u043F\u043B\u044E\u0448\u0435\u0432\u044B\u0439 \u043C\u0438\u0448\u043A\u0430', count: '\u043F\u043B\u044E\u0448\u0435\u0432\u044B\u0445 \u043C\u0438\u0448\u0435\u043A' } } },
+  { emoji: '\u{1F4D8}', category: 'objects', names: { en: { singular: 'book', count: 'books' }, ru: { singular: '\u043A\u043D\u0438\u0433\u0430', count: '\u043A\u043D\u0438\u0433' } } },
+  { emoji: '\u{1F4CF}', category: 'objects', names: { en: { singular: 'ruler', count: 'rulers' }, ru: { singular: '\u043B\u0438\u043D\u0435\u0439\u043A\u0430', count: '\u043B\u0438\u043D\u0435\u0435\u043A' } } },
+  { emoji: '\u{1F4CE}', category: 'objects', names: { en: { singular: 'paperclip', count: 'paperclips' }, ru: { singular: '\u0441\u043A\u0440\u0435\u043F\u043A\u0430', count: '\u0441\u043A\u0440\u0435\u043F\u043E\u043A' } } },
+  { emoji: '\u{1F50D}', category: 'objects', names: { en: { singular: 'magnifying glass', count: 'magnifying glasses' }, ru: { singular: '\u043B\u0443\u043F\u0430', count: '\u043B\u0443\u043F' } } },
+  { emoji: '\u{1F512}', category: 'objects', names: { en: { singular: 'lock', count: 'locks' }, ru: { singular: '\u0437\u0430\u043C\u043E\u043A', count: '\u0437\u0430\u043C\u043A\u043E\u0432' } } },
+  { emoji: '\u23F0', category: 'objects', names: { en: { singular: 'alarm clock', count: 'alarm clocks' }, ru: { singular: '\u0431\u0443\u0434\u0438\u043B\u044C\u043D\u0438\u043A', count: '\u0431\u0443\u0434\u0438\u043B\u044C\u043D\u0438\u043A\u043E\u0432' } } },
+  { emoji: '\u{1F9ED}', category: 'objects', names: { en: { singular: 'compass', count: 'compasses' }, ru: { singular: '\u043A\u043E\u043C\u043F\u0430\u0441', count: '\u043A\u043E\u043C\u043F\u0430\u0441\u043E\u0432' } } },
+  { emoji: '\u{1F511}', category: 'objects', names: { en: { singular: 'key', count: 'keys' }, ru: { singular: '\u043A\u043B\u044E\u0447', count: '\u043A\u043B\u044E\u0447\u0435\u0439' } } },
+  { emoji: '\u{1F4DD}', category: 'objects', names: { en: { singular: 'memo', count: 'memos' }, ru: { singular: '\u0437\u0430\u043F\u0438\u0441\u043A\u0430', count: '\u0437\u0430\u043F\u0438\u0441\u043E\u043A' } } },
 ];
 
 const EMOJI_CATEGORY_NAMES = ['animals', 'vehicles', 'food', 'nature', 'sports', 'objects'];
@@ -187,18 +237,38 @@ const getFilteredLexicon = (category) => {
   if (!category || category === 'all') return EMOJI_LEXICON.slice();
   return (EMOJI_CATEGORIES[category] || []).slice();
 };
+
+const NOISE_SYMBOL_SETS = {
+  shapes: ['\u2605', '\u2666', '\u25CF', '\u25B2', '\u25A0', '\u25C6', '\u25BC', '\u25C9'],
+  cards:  ['\u2660', '\u2663', '\u2665', '\u2666', '\u2664', '\u2667', '\u2661', '\u2662'],
+  arrows: ['\u2192', '\u2190', '\u2191', '\u2193', '\u21D2', '\u21D0', '\u21D1', '\u21D3']
+};
+
+const CIRCLED_DIGITS = ['\u24EA', '\u2460', '\u2461', '\u2462', '\u2463', '\u2464', '\u2465', '\u2466', '\u2467', '\u2468'];
+
+function toCircledDigits(numStr) {
+  return [...numStr].map(ch => {
+    const d = parseInt(ch, 10);
+    return (d >= 0 && d <= 9) ? CIRCLED_DIGITS[d] : ch;
+  }).join('');
+}
 </script>
 
 <script>
 
 const $ = id => document.getElementById(id);
 const ctx = $('can').getContext('2d');
-const NAME = 'emoji_code_scatter_v3';
+const NAME = 'emoji_code_scatter';
 
 const DEF = {
   w: 400, h: 600, code: '1234',
   rowCount: 6, rowHeight: 12,
-  columns: 'auto', dotStyle: 'filled', showEmoji: false,
+  layoutMode: 'rows',
+  columns: 'auto', gridCols: 3,
+  showEmoji: false,
+  markerShape: 'circle', dotStyle: 'filled',
+  leaderStyle: 'dots', numberFormat: 'plain',
+  noiseSymbolStyle: 'none',
   category: 'all', lang: 'en'
 };
 
@@ -224,11 +294,200 @@ function generateRandomCode(length) {
   return code;
 }
 
+// Helper: draw marker shape at (cx, cy) with given radius and color
+function drawMarker(cx, cy, radius, color, style) {
+  const shape = $('markerShape').value;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+
+  switch (shape) {
+    case 'circle':
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      if (style === 'filled') ctx.fill(); else ctx.stroke();
+      break;
+
+    case 'square':
+      if (style === 'filled') {
+        ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+      } else {
+        ctx.strokeRect(cx - radius, cy - radius, radius * 2, radius * 2);
+      }
+      break;
+
+    case 'triangle':
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx + radius, cy + radius);
+      ctx.lineTo(cx - radius, cy + radius);
+      ctx.closePath();
+      if (style === 'filled') ctx.fill(); else ctx.stroke();
+      break;
+
+    case 'star': {
+      const spikes = 5;
+      const outerR = radius;
+      const innerR = radius * 0.45;
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (Math.PI / 2 * -1) + (Math.PI / spikes) * i;
+        const sx = cx + Math.cos(angle) * r;
+        const sy = cy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+      }
+      ctx.closePath();
+      if (style === 'filled') ctx.fill(); else ctx.stroke();
+      break;
+    }
+
+    case 'diamond':
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx + radius, cy);
+      ctx.lineTo(cx, cy + radius);
+      ctx.lineTo(cx - radius, cy);
+      ctx.closePath();
+      if (style === 'filled') ctx.fill(); else ctx.stroke();
+      break;
+
+    case 'heart': {
+      const s = radius * 0.85;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + s * 0.8);
+      ctx.bezierCurveTo(cx - s * 1.3, cy - s * 0.2, cx - s * 0.6, cy - s * 1.2, cx, cy - s * 0.4);
+      ctx.bezierCurveTo(cx + s * 0.6, cy - s * 1.2, cx + s * 1.3, cy - s * 0.2, cx, cy + s * 0.8);
+      ctx.closePath();
+      if (style === 'filled') ctx.fill(); else ctx.stroke();
+      break;
+    }
+  }
+}
+
+// Helper: draw leader line between word and number
+function drawLeader(leaderStart, leaderEnd, centerY, fontSize) {
+  const leaderStyle = $('leaderStyle').value;
+  if (leaderEnd <= leaderStart + 8 || leaderStyle === 'none') return;
+
+  if (leaderStyle === 'dots') {
+    ctx.font = `${fontSize * 0.8}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = '#CCC';
+    ctx.textAlign = 'left';
+    const dotW = ctx.measureText('.').width;
+    const spacing = dotW * 1.2;
+    let dx = leaderStart;
+    while (dx + dotW < leaderEnd) {
+      ctx.fillText('.', dx, centerY);
+      dx += spacing;
+    }
+  } else if (leaderStyle === 'dashes') {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(leaderStart, centerY);
+    ctx.lineTo(leaderEnd, centerY);
+    ctx.strokeStyle = '#CCC';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  } else if (leaderStyle === 'solid') {
+    ctx.beginPath();
+    ctx.moveTo(leaderStart, centerY);
+    ctx.lineTo(leaderEnd, centerY);
+    ctx.strokeStyle = '#CCC';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else if (leaderStyle === 'arrows') {
+    ctx.font = `${fontSize * 0.7}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = '#CCC';
+    ctx.textAlign = 'left';
+    const arrowW = ctx.measureText('>').width;
+    const spacing = arrowW * 1.5;
+    let dx = leaderStart;
+    while (dx + arrowW < leaderEnd) {
+      ctx.fillText('>', dx, centerY);
+      dx += spacing;
+    }
+  }
+}
+
+// Helper: format and draw number with the selected numberFormat
+function drawNumber(numStr, numberX, centerY, fontSize) {
+  const numberFormat = $('numberFormat').value;
+  ctx.textAlign = 'right';
+
+  let displayNumber = numStr;
+  if (numberFormat === 'circled') {
+    displayNumber = toCircledDigits(numStr);
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = '#111';
+    ctx.fillText(displayNumber, numberX, centerY);
+  } else if (numberFormat === 'bold-block') {
+    ctx.font = `900 ${fontSize * 1.3}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = '#111';
+    ctx.fillText(displayNumber, numberX, centerY);
+  } else if (numberFormat === 'boxed') {
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+    const numW = ctx.measureText(displayNumber).width;
+    const boxPadX = fontSize * 0.25;
+    const boxPadY = fontSize * 0.18;
+    const boxX = numberX - numW - boxPadX;
+    const boxY = centerY - fontSize * 0.5 - boxPadY;
+    const boxW = numW + boxPadX * 2;
+    const boxH = fontSize + boxPadY * 2;
+    const boxR = 4;
+    ctx.fillStyle = '#EEE';
+    ctx.beginPath();
+    ctx.moveTo(boxX + boxR, boxY);
+    ctx.lineTo(boxX + boxW - boxR, boxY);
+    ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + boxR);
+    ctx.lineTo(boxX + boxW, boxY + boxH - boxR);
+    ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - boxR, boxY + boxH);
+    ctx.lineTo(boxX + boxR, boxY + boxH);
+    ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - boxR);
+    ctx.lineTo(boxX, boxY + boxR);
+    ctx.quadraticCurveTo(boxX, boxY, boxX + boxR, boxY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = '#111';
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.fillText(displayNumber, numberX, centerY);
+  } else {
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = '#111';
+    ctx.fillText(displayNumber, numberX, centerY);
+  }
+
+  // Return measured width for leader calculation
+  let numWidth;
+  if (numberFormat === 'bold-block') {
+    ctx.font = `900 ${fontSize * 1.3}px system-ui, -apple-system, sans-serif`;
+    numWidth = ctx.measureText(displayNumber).width;
+  } else if (numberFormat === 'boxed') {
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+    numWidth = ctx.measureText(displayNumber).width + fontSize * 0.5;
+  } else {
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+    numWidth = ctx.measureText(displayNumber).width;
+  }
+  return numWidth;
+}
+
 function generateRows() {
   const codeStr = $('code').value || '1234';
   const numRows = +$('rowCount').value;
   const cat = $('category').value;
   const lang = $('lang').value;
+  const noiseStyle = $('noiseSymbolStyle').value;
+
+  // Noise: when enabled, noise count = 50% of real rows (rounded)
+  const noiseCount = noiseStyle === 'none' ? 0 : Math.round(numRows * 0.5);
 
   const pool = getFilteredLexicon(cat);
   if (pool.length < numRows) {
@@ -241,10 +500,11 @@ function generateRows() {
   const answerIdx = Math.floor(Math.random() * chosen.length);
   answerEntry = chosen[answerIdx];
 
+  const totalDistractors = numRows - 1 + noiseCount;
   const usedNumbers = new Set([codeStr]);
   const distractorNumbers = [];
   let attempts = 0;
-  while (distractorNumbers.length < numRows - 1 && attempts < 10000) {
+  while (distractorNumbers.length < totalDistractors && attempts < 10000) {
     const num = generateRandomCode(codeStr.length);
     if (!usedNumbers.has(num)) {
       usedNumbers.add(num);
@@ -263,9 +523,30 @@ function generateRows() {
       emoji: chosen[i].emoji,
       word: word,
       dotColor: dotColor,
-      isAnswer: i === answerIdx
+      isAnswer: i === answerIdx,
+      isNoise: false
     });
   }
+
+  // Add noise rows
+  if (noiseCount > 0) {
+    const symbols = NOISE_SYMBOL_SETS[noiseStyle] || NOISE_SYMBOL_SETS.shapes;
+    const symbolPool = symbols.slice();
+    shuffle(symbolPool);
+    for (let n = 0; n < noiseCount; n++) {
+      const sym = symbolPool[n % symbolPool.length];
+      const dotColor = DOT_COLORS[Math.floor(Math.random() * DOT_COLORS.length)];
+      rows.push({
+        number: distractorNumbers[dIdx++] || generateRandomCode(codeStr.length),
+        emoji: sym,
+        word: sym,
+        dotColor: dotColor,
+        isAnswer: false,
+        isNoise: true
+      });
+    }
+  }
+
   shuffle(rows);
 }
 
@@ -279,6 +560,88 @@ function draw() {
 
   if (rows.length === 0) generateRows();
 
+  const layoutMode = $('layoutMode').value;
+  if (layoutMode === 'grid') {
+    drawGrid(W, H);
+  } else {
+    drawRowsLayout(W, H);
+  }
+}
+
+function drawGrid(W, H) {
+  const numGridCols = +$('gridCols').value;
+  const showEmoji = $('showEmoji').checked;
+  const dotStyle = $('dotStyle').value;
+
+  const mainH = H * 0.85;
+  const bottomY = mainH;
+  const padding = W * 0.03;
+  const availW = W - padding * 2;
+  const cellW = availW / numGridCols;
+
+  const totalCells = rows.length;
+  const totalGridRows = Math.ceil(totalCells / numGridCols);
+  const cellH = Math.min((mainH - padding * 2) / totalGridRows, mainH * 0.12);
+  const fontSize = Math.min(cellH * 0.28, H * 0.03);
+
+  let curY = padding;
+  let curCol = 0;
+  const lineH = cellH / (showEmoji ? 3.5 : 2.5);
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const x0 = padding + curCol * cellW;
+    const y0 = curY;
+
+    if (y0 + cellH > mainH) break;
+
+    // Cell background (alternating)
+    const bgColor = (curCol + Math.floor((curY - padding) / cellH)) % 2 === 0 ? '#FFFFFF' : '#F8F8F8';
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(x0, y0, cellW, cellH);
+
+    // Cell border
+    ctx.strokeStyle = '#DDD';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x0, y0, cellW, cellH);
+
+    let textY = y0 + cellH * 0.15;
+
+    if (showEmoji) {
+      ctx.font = `${fontSize * 1.3}px system-ui, -apple-system, sans-serif`;
+      ctx.fillStyle = '#333';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(r.emoji, x0 + cellW / 2, textY);
+      textY += lineH;
+    }
+
+    // Word
+    ctx.font = `${fontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(r.word, x0 + cellW / 2, textY);
+    textY += lineH;
+
+    // Number
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = '#111';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(r.number, x0 + cellW / 2, textY);
+
+    curCol++;
+    if (curCol >= numGridCols) {
+      curCol = 0;
+      curY += cellH;
+    }
+  }
+
+  drawBottomSection(W, H, bottomY);
+}
+
+function drawRowsLayout(W, H) {
   const numRows = rows.length;
   const colSetting = $('columns').value;
   const numCols = colSetting === 'auto' ? (numRows > 10 ? 2 : 1) : +colSetting;
@@ -296,8 +659,6 @@ function draw() {
   const rowH = Math.min(H * rowHeightPct, maxRowH);
   const fontSize = Math.min(rowH * 0.55, H * 0.04);
   const dotRadius = fontSize * 0.22;
-  const dotLeftOffset = padding + dotRadius + 4;
-  const wordLeftOffset = dotStyle === 'none' ? dotLeftOffset : dotLeftOffset + dotRadius + 8;
 
   for (let i = 0; i < numRows; i++) {
     const col = Math.floor(i / rowsPerCol);
@@ -317,18 +678,9 @@ function draw() {
     const centerY = y + rowH / 2;
     const dotX = x0 + dotRadius + 8;
 
-    // Draw dot
+    // Draw marker
     if (dotStyle !== 'none') {
-      ctx.beginPath();
-      ctx.arc(dotX, centerY, dotRadius, 0, Math.PI * 2);
-      if (dotStyle === 'filled') {
-        ctx.fillStyle = r.dotColor;
-        ctx.fill();
-      } else {
-        ctx.strokeStyle = r.dotColor;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
+      drawMarker(dotX, centerY, dotRadius, r.dotColor, dotStyle);
     }
 
     // Emoji + Word
@@ -348,28 +700,12 @@ function draw() {
 
     // Number (right-aligned)
     const numberX = x0 + colW - colGap - 8;
-    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
-    ctx.fillStyle = '#111';
-    ctx.textAlign = 'right';
-    ctx.fillText(r.number, numberX, centerY);
-    const numWidth = ctx.measureText(r.number).width;
+    const numWidth = drawNumber(r.number, numberX, centerY, fontSize);
 
-    // Dot leaders between word and number
+    // Leader line between word and number
     const leaderStart = wordX + wordWidth + 6;
     const leaderEnd = numberX - numWidth - 4;
-    if (leaderEnd > leaderStart + 8) {
-      ctx.font = `${fontSize * 0.8}px system-ui, -apple-system, sans-serif`;
-      ctx.fillStyle = '#CCC';
-      ctx.textAlign = 'left';
-      const dotChar = '.';
-      const dotW = ctx.measureText(dotChar).width;
-      const spacing = dotW * 1.2;
-      let dx = leaderStart;
-      while (dx + dotW < leaderEnd) {
-        ctx.fillText(dotChar, dx, centerY);
-        dx += spacing;
-      }
-    }
+    drawLeader(leaderStart, leaderEnd, centerY, fontSize);
   }
 
   // Separator line
@@ -378,7 +714,22 @@ function draw() {
   ctx.lineTo(W * 0.95, bottomY);
   ctx.strokeStyle = '#bbb';
   ctx.lineWidth = 2;
+  ctx.setLineDash([]);
   ctx.stroke();
+
+  drawBottomSection(W, H, bottomY);
+}
+
+function drawBottomSection(W, H, bottomY) {
+  // Separator line (for grid mode)
+  if ($('layoutMode').value === 'grid') {
+    ctx.beginPath();
+    ctx.moveTo(W * 0.05, bottomY);
+    ctx.lineTo(W * 0.95, bottomY);
+    ctx.strokeStyle = '#bbb';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
 
   // Bottom zone: emoji prompt
   const bottomCenterY = bottomY + (H - bottomY) / 2;
@@ -436,11 +787,17 @@ $('code').oninput = fullRedraw;
 $('rowCount').oninput = fullRedraw;
 $('category').onchange = fullRedraw;
 $('lang').onchange = fullRedraw;
+$('noiseSymbolStyle').onchange = fullRedraw;
 
 // Inputs that only need re-draw
 $('rowHeight').oninput = draw;
+$('layoutMode').onchange = draw;
 $('columns').onchange = draw;
+$('gridCols').oninput = draw;
 $('dotStyle').onchange = draw;
+$('markerShape').onchange = draw;
+$('leaderStyle').onchange = draw;
+$('numberFormat').onchange = draw;
 $('showEmoji').onchange = draw;
 $('w').oninput = draw;
 $('h').oninput = draw;
