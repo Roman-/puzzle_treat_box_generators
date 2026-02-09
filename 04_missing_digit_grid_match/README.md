@@ -1,16 +1,7 @@
 # Missing Digit Grid Match
 
-A grid-based puzzle where each of the four grids is identical except for one cell that is replaced with a `?`. The goal is to read the digits from the matching position in the other grids and combine them left to right to reveal the 4‑digit code.
+Four identical grids of random digits are displayed side by side. In each grid, one cell is replaced with a "?" — a different cell in each grid. The solver reads the hidden digit from the matching position in the other three grids where it is still visible.
 
-Each grid cell is filled with the same bright colour across all four grids to help visually align the cells. Changing any option re-renders the preview.
+Optional color-coding gives each cell a unique background hue so the solver can quickly locate the same cell across grids.
 
-## Customisation
-- Number of rows and columns
-- Spacing between the grids
-- Font family and size
-- Cell border thickness
-- Option to toggle the coloured background
-
-## Implementation notes
-- The four missing digits are taken from the code input.
-- Any change to the controls randomises the grids and colours.
+![Example](missing_digit_grid_9486.png)
