@@ -13,19 +13,19 @@
 <hr>
 
 <!-- === creativity controls === -->
-<label>Mask <input id=mask type=text value="1111111111" maxlength=10 style="width:100px;font-family:monospace"></label>
+<label title="0 = hide that number, 1 = show">Mask <input id=mask type=text value="1111111111" maxlength=10 style="width:100px;font-family:monospace" title="0 = hide that number, 1 = show"></label>
 <br>
-<label>Line Y <input id=lineY type=range min=0.15 max=0.40 step=0.01 value=0.25></label>
+<label>Line Y <input id=lineY type=range min=0.15 max=0.40 step=0.01 value=0.15></label>
 <br>
 <label>Line thickness <input id=lineW type=range min=1 max=20 step=1 value=3></label>
 <br>
 <label>Tick height <input id=tickH type=range min=0.01 max=0.06 step=0.005 value=0.03></label>
 <br>
-<label>Label font size <input id=labelFont type=range min=0.02 max=0.06 step=0.005 value=0.04></label>
+<label>Label font size <input id=labelFont type=range min=0.02 max=0.25 step=0.005 value=0.06></label>
 <br>
 <label>Dot radius <input id=dotR type=range min=0.005 max=0.025 step=0.002 value=0.012></label>
 <br>
-<label>? size <input id=qSize type=range min=0.03 max=0.08 step=0.005 value=0.05></label>
+<label>? size <input id=qSize type=range min=0.03 max=0.1 step=0.005 value=0.06></label>
 <br>
 <label>Palette <select id=palette>
   <option value=bright>bright</option>
@@ -77,9 +77,9 @@ document.querySelectorAll('input[type=range]').forEach(r => {
 
   const DEF = {
     w: 800, h: 600, code: '1234',
-    mask: '1111111111', lineY: 0.25, lineW: 3,
-    tickH: 0.03, labelFont: 0.04, dotR: 0.012,
-    qSize: 0.05, palette: 'bright'
+    mask: '1111111111', lineY: 0.15, lineW: 3,
+    tickH: 0.03, labelFont: 0.06, dotR: 0.012,
+    qSize: 0.06, palette: 'bright'
   };
 
   function draw(){

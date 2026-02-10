@@ -36,6 +36,7 @@ Click any image below to explore the generator and example output. All examples 
 [![Words Spelled Out](04_words_spelled_out_custom_font/use_this_pic.png)](04_words_spelled_out_custom_font/)
 [![Color sequence circles](07_color_sequence_circles/color_sequence_circles_9484.png)](07_color_sequence_circles/)
 [![Outlined digits filter](08_outlined_digits_filter/outlined_digits_filter_48946.png)](08_outlined_digits_filter/)
+[![Number Line Drop Lines](21_number_line_decoder/number_line_drop_1234.png)](21_number_line_decoder/)
 
 # Puzzle guidelines
 - Instant affordance: By visual inspection alone, it should be obvious what action to perform to extract each digit.
