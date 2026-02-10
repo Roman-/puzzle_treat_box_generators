@@ -41,3 +41,45 @@
 - Put to another use
 - Eliminate
 - Rearrange
+
+## Change any constant. Break default thinking by treating all assumptions as variables.
+- State the problem in one sentence.
+- List constants you’re assuming (time, user behavior, cost, medium, scale, sequence, ownership, skills).
+- Flip one assumption:
+    - Set it to zero
+    - Make it infinite
+    - Reverse it
+    - Randomize it
+    - Replace it with its opposite
+- Ask: What solution exists under this new rule?
+- Extract the insight, not the literal solution.
+- Re-apply reality with that insight intact.
+
+## Search through my notes on this topic
+
+## Step back, change the scale of the problem. Reveal hidden structure by zooming far out or far in.
+1. State the problem clearly. Assume: if you’re stuck, you’re at the wrong scale.
+2. Change the scale deliberately:
+    - Zoom out ×10, ×100, ×1000 (system, lifetime, civilization).
+    - Zoom in ×10, ×100 (moment, action, interaction, decision).
+3. Rephrase the problem at that scale.
+4. Ask: What matters now? What disappears? What dominates?
+
+### Prompts
+- At civilization scale, what is this really about?
+- At daily / minute scale, what actually happens?
+- Over 10 years, what compounds?
+- In one second, what decision matters?
+- If this repeated a million times, what breaks?
+
+## Apply the Lever (Domino Effect). Lower force to influence higher consequences?
+### Identify leverage points where:
+- One action repeats
+- Others copy it
+- Systems auto-respond
+- Feedback loops exist
+
+### Reduce input force:
+- Earlier in the chain
+- Closer to the bottleneck
+- Where behavior compounds
