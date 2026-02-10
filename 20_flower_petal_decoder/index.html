@@ -2,8 +2,8 @@
 <meta charset="utf-8">
 <title>Flower Petal Decoder – generator</title>
 
-<label>W <input id=w type=number value=800 min=100></label>
-<label>H <input id=h type=number value=500 min=100></label>
+<label>W <input id=w type=number value=1200 min=100></label>
+<label>H <input id=h type=number value=700 min=100></label>
 
 <label>Code <input id=code type=text value=1234 pattern="\d{3,5}" maxlength=5></label>
 <button type=button data-t="code">&#x1F3B2;</button>
@@ -11,15 +11,15 @@
 <hr>
 
 <label>Petal length (x flower radius)
-  <input id=petalLength type=range min=0.40 max=1.00 step=0.01 value=0.70>
+  <input id=petalLength type=range min=0.40 max=2.00 step=0.01 value=1.00>
 </label><br>
 
 <label>Petal width (x flower radius)
-  <input id=petalWidth type=range min=0.10 max=0.80 step=0.01 value=0.50>
+  <input id=petalWidth type=range min=0.10 max=0.80 step=0.01 value=0.72>
 </label><br>
 
 <label>Marker size (x flower radius)
-  <input id=markerSize type=range min=0.05 max=0.25 step=0.01 value=0.12>
+  <input id=markerSize type=range min=0.05 max=0.25 step=0.01 value=0.16>
 </label><br>
 
 <label>Color mode
@@ -37,14 +37,12 @@
 </label><br>
 
 <label>Reference flower size (x H)
-  <input id=refSize type=range min=0.20 max=0.50 step=0.01 value=0.35>
+  <input id=refSize type=range min=0.20 max=0.50 step=0.01 value=0.40>
 </label><br>
 
 <label>Center circle size (x flower radius)
   <input id=centerSize type=range min=0.10 max=0.35 step=0.01 value=0.20>
 </label><br>
-
-<hr>
 
 <button id=reset type=button>Restore defaults</button>
 <button id=rerender type=button>Re-render</button>
@@ -69,12 +67,12 @@ const ctx = $('can').getContext('2d');
 const NAME = 'flower_petal_decoder';
 
 const DEF = {
-  w: 800, h: 500, code: '1234',
-  petalLength: 0.70,
-  petalWidth: 0.50,
-  markerSize: 0.12,
+  w: 1200, h: 700, code: '1234',
+  petalLength: 1.00,
+  petalWidth: 0.72,
+  markerSize: 0.16,
   rotation: 0,
-  refSize: 0.35,
+  refSize: 0.40,
   centerSize: 0.20,
   colorMode: 'ref_only'
 };
