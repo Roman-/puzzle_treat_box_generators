@@ -1,0 +1,620 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Sunflower Emoji Decoder – generator</title>
+
+<label>W <input id=w type=number value=800 min=100></label>
+<label>H <input id=h type=number value=600 min=100></label>
+
+<label>Code <input id=code type=text value=1234 pattern="\d{3,5}" maxlength=5></label>
+<button type=button data-t="code">&#x1F3B2;</button>
+
+<hr>
+
+<label>Ring radius (x flower radius)
+  <input id=ringRadius type=range min=0.40 max=0.90 step=0.01 value=0.65>
+</label><br>
+
+<label>Pod size (x flower radius)
+  <input id=podSize type=range min=0.08 max=0.30 step=0.01 value=0.18>
+</label><br>
+
+<label>Center size (x flower radius)
+  <input id=centerSize type=range min=0.10 max=0.40 step=0.01 value=0.22>
+</label><br>
+
+<label>Emoji category
+  <select id=emojiCategory>
+    <option value="all" selected>All</option>
+    <option value="animals">Animals</option>
+    <option value="vehicles">Vehicles</option>
+    <option value="food">Food</option>
+    <option value="nature">Nature</option>
+    <option value="sports">Sports</option>
+    <option value="objects">Objects</option>
+  </select>
+</label><br>
+
+<label>Number of circles
+  <input id=numCircles type=range min=4 max=16 step=1 value=10>
+</label><br>
+
+<label>Color mode
+  <select id=colorMode>
+    <option value="full">Full color everywhere</option>
+    <option value="ref_only" selected>Reference colored, answers target-only</option>
+    <option value="ref_gray">Reference colored, answers all gray</option>
+    <option value="all_gray">All gray (position only)</option>
+    <option value="answers_full">Reference gray, answers colored</option>
+  </select>
+</label><br>
+
+<label>Table distractors
+  <input id=tableDistractors type=range min=0 max=6 step=1 value=2>
+</label><br>
+
+<label>Table-to-flower gap
+  <input id=tableFlowerGap type=range min=0.00 max=0.10 step=0.005 value=0.02>
+</label><br>
+
+<label>Flower-to-answers gap
+  <input id=flowerAnswerGap type=range min=0.00 max=0.10 step=0.005 value=0.03>
+</label><br>
+
+<label><input id=showPetals type=checkbox checked> Show decorative petals</label><br>
+
+<button id=reset type=button>Restore defaults</button>
+<button id=rerender type=button>Re-render</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:4px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+
+<script>
+/* ------------------------------------------------
+   Inline emoji lexicon and helpers from shared/emojis.js
+   ------------------------------------------------ */
+const EMOJI_LEXICON = [
+  { emoji: '\u{1F436}', category: 'animals' },
+  { emoji: '\u{1F431}', category: 'animals' },
+  { emoji: '\u{1F42D}', category: 'animals' },
+  { emoji: '\u{1F439}', category: 'animals' },
+  { emoji: '\u{1F430}', category: 'animals' },
+  { emoji: '\u{1F98A}', category: 'animals' },
+  { emoji: '\u{1F43B}', category: 'animals' },
+  { emoji: '\u{1F43C}', category: 'animals' },
+  { emoji: '\u{1F42F}', category: 'animals' },
+  { emoji: '\u{1F981}', category: 'animals' },
+  { emoji: '\u{1F42E}', category: 'animals' },
+  { emoji: '\u{1F438}', category: 'animals' },
+  { emoji: '\u{1F435}', category: 'animals' },
+  { emoji: '\u{1F414}', category: 'animals' },
+  { emoji: '\u{1F427}', category: 'animals' },
+  { emoji: '\u{1F986}', category: 'animals' },
+  { emoji: '\u{1F989}', category: 'animals' },
+  { emoji: '\u{1F984}', category: 'animals' },
+  { emoji: '\u{1F422}', category: 'animals' },
+  { emoji: '\u{1F419}', category: 'animals' },
+  { emoji: '\u{1F98B}', category: 'animals' },
+  { emoji: '\u{1F41D}', category: 'animals' },
+  { emoji: '\u{1F40C}', category: 'animals' },
+  { emoji: '\u{1F420}', category: 'animals' },
+  { emoji: '\u{1F697}', category: 'vehicles' },
+  { emoji: '\u{1F68C}', category: 'vehicles' },
+  { emoji: '\u{1F69C}', category: 'vehicles' },
+  { emoji: '\u{1F6B2}', category: 'vehicles' },
+  { emoji: '\u{1F686}', category: 'vehicles' },
+  { emoji: '\u{1F681}', category: 'vehicles' },
+  { emoji: '\u26F5',    category: 'vehicles' },
+  { emoji: '\u{1F680}', category: 'vehicles' },
+  { emoji: '\u{1F695}', category: 'vehicles' },
+  { emoji: '\u{1F699}', category: 'vehicles' },
+  { emoji: '\u{1F34E}', category: 'food' },
+  { emoji: '\u{1F350}', category: 'food' },
+  { emoji: '\u{1F34A}', category: 'food' },
+  { emoji: '\u{1F34B}', category: 'food' },
+  { emoji: '\u{1F34C}', category: 'food' },
+  { emoji: '\u{1F349}', category: 'food' },
+  { emoji: '\u{1F347}', category: 'food' },
+  { emoji: '\u{1F353}', category: 'food' },
+  { emoji: '\u{1F352}', category: 'food' },
+  { emoji: '\u{1F34D}', category: 'food' },
+  { emoji: '\u{1F95D}', category: 'food' },
+  { emoji: '\u{1F955}', category: 'food' },
+  { emoji: '\u{1F33D}', category: 'food' },
+  { emoji: '\u{1F345}', category: 'food' },
+  { emoji: '\u{1F954}', category: 'food' },
+  { emoji: '\u{1F966}', category: 'food' },
+  { emoji: '\u{1F952}', category: 'food' },
+  { emoji: '\u{1F355}', category: 'food' },
+  { emoji: '\u{1F354}', category: 'food' },
+  { emoji: '\u{1F35F}', category: 'food' },
+  { emoji: '\u{1F32D}', category: 'food' },
+  { emoji: '\u{1F32E}', category: 'food' },
+  { emoji: '\u{1F32F}', category: 'food' },
+  { emoji: '\u{1F37F}', category: 'food' },
+  { emoji: '\u{1F36A}', category: 'food' },
+  { emoji: '\u{1F369}', category: 'food' },
+  { emoji: '\u{1F9C1}', category: 'food' },
+  { emoji: '\u{1F370}', category: 'food' },
+  { emoji: '\u{1F36B}', category: 'food' },
+  { emoji: '\u{1F36D}', category: 'food' },
+  { emoji: '\u{1F368}', category: 'food' },
+  { emoji: '\u{1F338}', category: 'nature' },
+  { emoji: '\u{1F340}', category: 'nature' },
+  { emoji: '\u{1F334}', category: 'nature' },
+  { emoji: '\u{1F335}', category: 'nature' },
+  { emoji: '\u{1F308}', category: 'nature' },
+  { emoji: '\u{1F319}', category: 'nature' },
+  { emoji: '\u{1F31E}', category: 'nature' },
+  { emoji: '\u{1F30A}', category: 'nature' },
+  { emoji: '\u{1F3C0}', category: 'sports' },
+  { emoji: '\u{1F3BE}', category: 'sports' },
+  { emoji: '\u{1F3D0}', category: 'sports' },
+  { emoji: '\u{1F3C2}', category: 'sports' },
+  { emoji: '\u{1F6F9}', category: 'sports' },
+  { emoji: '\u{1F3AF}', category: 'sports' },
+  { emoji: '\u{1F3C6}', category: 'sports' },
+  { emoji: '\u{1F381}', category: 'objects' },
+  { emoji: '\u{1F388}', category: 'objects' },
+  { emoji: '\u{1F9F8}', category: 'objects' },
+  { emoji: '\u{1F4D8}', category: 'objects' },
+  { emoji: '\u{1F4CF}', category: 'objects' },
+  { emoji: '\u{1F4CE}', category: 'objects' },
+  { emoji: '\u{1F50D}', category: 'objects' },
+  { emoji: '\u{1F512}', category: 'objects' },
+  { emoji: '\u23F0',    category: 'objects' },
+  { emoji: '\u{1F9ED}', category: 'objects' },
+  { emoji: '\u{1F511}', category: 'objects' },
+  { emoji: '\u{1F4DD}', category: 'objects' },
+];
+
+const EMOJI_CATEGORY_NAMES = ['animals', 'vehicles', 'food', 'nature', 'sports', 'objects'];
+
+const EMOJI_CATEGORIES = {};
+for (const cat of EMOJI_CATEGORY_NAMES) {
+  EMOJI_CATEGORIES[cat] = EMOJI_LEXICON.filter(e => e.category === cat).map(e => e.emoji);
+}
+const ALL_EMOJIS = EMOJI_LEXICON.map(e => e.emoji);
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function pickDistinctEmojis(n, category) {
+  let pool;
+  if (category && category !== 'all') {
+    pool = (EMOJI_CATEGORIES[category] || []).slice();
+  } else {
+    pool = ALL_EMOJIS.slice();
+  }
+  pool = shuffle(pool);
+  return pool.slice(0, Math.min(n, pool.length));
+}
+
+/* ------------------------------------------------
+   Main generator
+   ------------------------------------------------ */
+const $ = id => document.getElementById(id);
+const ctx = $('can').getContext('2d');
+const NAME = 'sunflower_emoji';
+
+const DEF = {
+  w: 800, h: 600, code: '1234',
+  ringRadius: 0.65,
+  podSize: 0.18,
+  centerSize: 0.22,
+  numCircles: 10,
+  colorMode: 'ref_only',
+  tableDistractors: 2,
+  tableFlowerGap: 0.02,
+  flowerAnswerGap: 0.03,
+  emojiCategory: 'all',
+  showPetals: true
+};
+
+const COLORS = [
+  '#d40808', '#0D47A1', '#43A047', '#FDD835', '#FB8C00',
+  '#75118f', '#00CED1', '#ff19d1', '#6D4C41', '#616161',
+  '#1B5E20', '#E65100', '#4A148C', '#006064', '#BF360C', '#263238'
+];
+
+// State: assignment of emojis to pod positions
+// Each pod: { emoji, digit (number or null for distractors) }
+let podAssignment = [];
+// Reference table entries: { emoji, digit } — only the ones shown in the table
+let tableEntries = [];
+// Color per pod position index
+let podColors = [];
+
+function regenerateEmojis() {
+  const cat = $('emojiCategory').value;
+  const numC = +$('numCircles').value;
+  const codeStr = $('code').value || '1234';
+  const codeDigits = codeStr.split('').map(Number);
+  const uniqueDigits = [...new Set(codeDigits)];
+  const numDistractors = +$('tableDistractors').value;
+
+  // Pick enough emojis for all pods
+  const allEmojis = pickDistinctEmojis(numC, cat);
+
+  // Assign unique code digits to random emojis (first uniqueDigits.length emojis)
+  const digitToEmoji = {};
+  const emojiToDigit = {};
+  for (let i = 0; i < uniqueDigits.length; i++) {
+    digitToEmoji[uniqueDigits[i]] = allEmojis[i];
+    emojiToDigit[allEmojis[i]] = uniqueDigits[i];
+  }
+
+  // Remaining emojis are distractors on the flower (no digit)
+  const distractorEmojis = allEmojis.slice(uniqueDigits.length);
+
+  // Build pod assignment: code emojis + distractor emojis, shuffled into positions
+  const codeEmojiList = uniqueDigits.map(d => ({ emoji: digitToEmoji[d], digit: d }));
+  const distractorPodList = distractorEmojis.map(e => ({ emoji: e, digit: null }));
+  podAssignment = shuffle([...codeEmojiList, ...distractorPodList]);
+
+  // Build reference table: code mappings + distractor mappings (shuffled)
+  const codeMappings = uniqueDigits.map(d => ({ emoji: digitToEmoji[d], digit: d }));
+
+  // Distractor table entries: pick from distractor emojis, assign random non-code digits
+  const nonCodeDigits = shuffle([0,1,2,3,4,5,6,7,8,9].filter(d => !uniqueDigits.includes(d)));
+  const availableDistractorEmojis = distractorEmojis.slice();
+  const actualDistractors = Math.min(numDistractors, availableDistractorEmojis.length, nonCodeDigits.length);
+  const distractorMappings = [];
+  for (let i = 0; i < actualDistractors; i++) {
+    distractorMappings.push({ emoji: availableDistractorEmojis[i], digit: nonCodeDigits[i] });
+  }
+
+  tableEntries = shuffle([...codeMappings, ...distractorMappings]);
+
+  // Assign a unique color to each pod position
+  podColors = shuffle(COLORS.slice(0, Math.min(numC, COLORS.length)));
+}
+
+/* ------------------------------------------------
+   drawDecorativePetal(cx, cy, angle, innerR, outerR, petalW, color)
+   Draws a single teardrop petal radiating outward from (cx,cy).
+   ------------------------------------------------ */
+function drawDecorativePetal(cx, cy, angle, innerR, outerR, petalW, color) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  const baseY = -innerR;
+  const tipY  = -outerR;
+  const len   = outerR - innerR;
+  const widestY = baseY - len * 0.60;
+  const cpX = petalW * 1.15;
+
+  ctx.beginPath();
+  ctx.moveTo(0, baseY);
+  ctx.quadraticCurveTo(cpX, widestY, 0, tipY);
+  ctx.quadraticCurveTo(-cpX, widestY, 0, baseY);
+  ctx.closePath();
+
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+/* ------------------------------------------------
+   drawReferenceTable(x, y, w, h)
+   Draws the emoji → number mapping table at the top.
+   Shows only code-relevant + distractor entries, shuffled.
+   No "=" sign — just emoji above, digit below.
+   ------------------------------------------------ */
+function drawReferenceTable(x, y, w, h) {
+  const numC = tableEntries.length;
+  if (numC === 0) return;
+  const cellW = w / numC;
+  const cellH = h;
+
+  for (let i = 0; i < numC; i++) {
+    const entry = tableEntries[i];
+    const cx = x + i * cellW + cellW / 2;
+
+    // Emoji on top
+    const emojiFontSize = cellH * 0.45;
+    ctx.font = `${emojiFontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(entry.emoji, cx, y + cellH * 0.35);
+
+    // Digit below (no "=" separator)
+    const digitFontSize = cellH * 0.35;
+    ctx.font = `bold ${digitFontSize}px sans-serif`;
+    ctx.fillStyle = '#333';
+    ctx.fillText(String(entry.digit), cx, y + cellH * 0.78);
+  }
+}
+
+/* ------------------------------------------------
+   getPodFillColor(podIndex, isRef, isTarget, mode)
+   Returns the fill color for a pod based on color mode.
+   ------------------------------------------------ */
+function getPodFillColor(podIndex, isRef, isTarget, mode) {
+  const real = podColors[podIndex] || '#fff';
+  switch (mode) {
+    case 'full':
+      return real;
+    case 'ref_only':
+      if (isRef) return real;
+      return isTarget ? real : '#ddd';
+    case 'ref_gray':
+      if (isRef) return real;
+      return '#ddd';
+    case 'all_gray':
+      return isRef ? '#fff' : '#ddd';
+    case 'answers_full':
+      if (isRef) return '#fff';
+      return real;
+    default:
+      return real;
+  }
+}
+
+/* ------------------------------------------------
+   drawSunflower(cx, cy, radius, opts)
+   opts.isRef: true for reference sunflower (emojis only, no numbers)
+   opts.activeDigit: digit to highlight on answer (-1 for ref)
+   ------------------------------------------------ */
+function drawSunflower(cx, cy, radius, opts) {
+  const ringR   = +$('ringRadius').value;
+  const podSz   = +$('podSize').value;
+  const cSize   = +$('centerSize').value;
+  const petals  = $('showPetals').checked;
+  const mode    = $('colorMode').value;
+  const numC    = podAssignment.length;
+
+  const centerR  = radius * cSize;
+  const ringDist = radius * ringR;
+  const podR     = radius * podSz;
+
+  const angleStep = 360 / numC;
+
+  // Decorative petals (behind everything, between pod positions)
+  if (petals) {
+    const petalInnerR = centerR * 0.9;
+    const petalOuterR = ringDist + podR * 1.2;
+    const petalW = podR * 0.7;
+    for (let i = 0; i < numC; i++) {
+      const angle = ((i * angleStep) + angleStep / 2) * Math.PI / 180;
+      drawDecorativePetal(cx, cy, angle, petalInnerR, petalOuterR, petalW, '#FFD54F');
+    }
+  }
+
+  // Center disc: dark brown
+  ctx.beginPath();
+  ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+  ctx.fillStyle = '#5D4037';
+  ctx.fill();
+
+  // Inner golden ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, centerR * 0.65, 0, Math.PI * 2);
+  ctx.fillStyle = '#DAA520';
+  ctx.fill();
+
+  // Draw pods in a ring
+  for (let i = 0; i < numC; i++) {
+    const angle = (i * angleStep) * Math.PI / 180;
+    const px = cx + Math.sin(angle) * ringDist;
+    const py = cy - Math.cos(angle) * ringDist;
+
+    const pod = podAssignment[i];
+    const isTarget = !opts.isRef && pod.digit === opts.activeDigit;
+    const fillColor = getPodFillColor(i, opts.isRef, isTarget, mode);
+
+    // Pod circle
+    ctx.beginPath();
+    ctx.arc(px, py, podR, 0, Math.PI * 2);
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+    ctx.strokeStyle = '#5D4037';
+    ctx.lineWidth = Math.max(1, podR * 0.08);
+    ctx.stroke();
+
+    if (opts.isRef) {
+      // Reference: emoji centered in pod
+      const emojiFontSize = podR * 1.1;
+      ctx.font = `${emojiFontSize}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(pod.emoji, px, py);
+    } else if (isTarget) {
+      // Answer: show "?" in the highlighted pod
+      const qFontSize = podR * 1.2;
+      ctx.font = `bold ${qFontSize}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#5D4037';
+      ctx.fillText('?', px, py);
+    }
+  }
+}
+
+/* ------------------------------------------------
+   draw()  - main render
+   ------------------------------------------------ */
+function draw() {
+  const W = +$('w').value;
+  const H = +$('h').value;
+  let numC = +$('numCircles').value;
+  $('can').width = W;
+  $('can').height = H;
+
+  const codeStr = $('code').value || '1234';
+  const digits = codeStr.split('').map(Number);
+  const N = digits.length;
+  const uniqueDigits = [...new Set(digits)];
+
+  // Enforce min circles = number of unique digits in code
+  if (numC < uniqueDigits.length) {
+    numC = uniqueDigits.length;
+    $('numCircles').value = numC;
+    const span = $('numCircles').nextElementSibling;
+    if (span && span.tagName === 'SPAN') span.textContent = numC;
+    regenerateEmojis();
+  }
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  const ringR  = +$('ringRadius').value;
+  const podSz  = +$('podSize').value;
+  const tableFlowerGap = +$('tableFlowerGap').value;
+  const flowerAnswerGap = +$('flowerAnswerGap').value;
+
+  // --- Reference table at the top ---
+  const tableH = H * 0.10;
+  const tableMargin = W * 0.04;
+  drawReferenceTable(tableMargin, H * 0.01, W - tableMargin * 2, tableH);
+
+  // --- Reference sunflower: center area ---
+  const calcExtent = (radius) => radius * ringR + radius * podSz;
+
+  const flowerTop = tableH + H * tableFlowerGap;
+  const refAreaH = H * 0.48 - tableH;
+  const refMaxByH = refAreaH / (2 * (ringR + podSz)) * 0.90;
+  const refMaxByW = W / (2 * (ringR + podSz)) * 0.90;
+  const refRadius = Math.min(refMaxByH, refMaxByW);
+
+  const refExtent = calcExtent(refRadius);
+  const refCX = W / 2;
+  const refCY = flowerTop + refExtent + H * 0.01;
+
+  drawSunflower(refCX, refCY, refRadius, {
+    isRef: true,
+    activeDigit: -1
+  });
+
+  // --- Answer sunflowers: bottom row ---
+  const refBottom = refCY + refExtent;
+  const gap = H * flowerAnswerGap;
+  const answerTop = refBottom + gap;
+  const answerAvailH = H - answerTop - H * 0.02;
+  const answerAvailW = W - W * 0.06;
+
+  const maxRadiusByWidth = (answerAvailW / N) / (2 * (ringR + podSz)) * 0.90;
+  const maxRadiusByHeight = answerAvailH / (2 * (ringR + podSz)) * 0.90;
+  const ansRadius = Math.min(maxRadiusByWidth, maxRadiusByHeight);
+
+  const ansExtent = calcExtent(ansRadius);
+  const ansCY = answerTop + ansExtent;
+
+  const spacing = answerAvailW / N;
+  const startX = W * 0.03 + spacing / 2;
+
+  for (let i = 0; i < N; i++) {
+    const digit = digits[i];
+    const ansCX = startX + i * spacing;
+    drawSunflower(ansCX, ansCY, ansRadius, {
+      isRef: false,
+      activeDigit: digit
+    });
+  }
+}
+
+/* ------------------------------------------------
+   Event handlers
+   ------------------------------------------------ */
+function randCode() {
+  const len = ($('code').value || '1234').length;
+  let code = '';
+  for (let i = 0; i < len; i++) {
+    code += Math.floor(Math.random() * 10);
+  }
+  $('code').value = code;
+}
+
+// Dice button
+document.querySelectorAll('[data-t]').forEach(b => {
+  b.onclick = () => {
+    if (b.dataset.t === 'code') {
+      randCode();
+      regenerateEmojis();
+      draw();
+    }
+  };
+});
+
+// Code input
+$('code').oninput = () => { regenerateEmojis(); draw(); };
+
+// Range inputs
+document.querySelectorAll('input[type=range]').forEach(el => {
+  if (el.id === 'numCircles' || el.id === 'tableDistractors') {
+    el.oninput = () => { regenerateEmojis(); draw(); };
+  } else {
+    el.oninput = draw;
+  }
+});
+
+// Select inputs
+$('emojiCategory').onchange = () => { regenerateEmojis(); draw(); };
+$('colorMode').onchange = draw;
+
+// Checkbox
+$('showPetals').onchange = draw;
+
+// Size inputs
+$('w').oninput = draw;
+$('h').oninput = draw;
+
+// Reset
+$('reset').onclick = () => {
+  for (const k in DEF) {
+    const el = $(k);
+    if (!el) continue;
+    if (k === 'showPetals') {
+      el.checked = DEF[k];
+    } else {
+      el.value = DEF[k];
+    }
+  }
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const span = r.nextElementSibling;
+    if (span && span.tagName === 'SPAN') span.textContent = r.value;
+  });
+  regenerateEmojis();
+  draw();
+};
+
+// Re-render
+$('rerender').onclick = () => {
+  regenerateEmojis();
+  draw();
+};
+
+// Canvas click: download, then randomize and re-render
+$('can').onclick = () => {
+  const c = $('code').value || '1234';
+  const a = document.createElement('a');
+  a.download = `${NAME}_${c}.png`;
+  a.href = $('can').toDataURL();
+  a.click();
+  randCode();
+  regenerateEmojis();
+  draw();
+};
+
+// Initial render
+regenerateEmojis();
+draw();
+</script>
