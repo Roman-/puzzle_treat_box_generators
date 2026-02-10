@@ -1,0 +1,246 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Number Line Drop Lines – generator</title>
+
+<!-- === size first === -->
+<label>W <input id=w type=number value=800 min=50></label>
+<label>H <input id=h type=number value=600 min=50></label>
+
+<!-- === code (3–5 digits) + 🎲 === -->
+<label>Code <input id=code type=text value=1234 maxlength=5></label>
+<button type=button data-t="code">🎲</button>
+
+<hr>
+
+<!-- === creativity controls === -->
+<label>Mask <input id=mask type=text value="1111111111" maxlength=10 style="width:100px;font-family:monospace"></label>
+<br>
+<label>Line Y <input id=lineY type=range min=0.15 max=0.40 step=0.01 value=0.25></label>
+<br>
+<label>Line thickness <input id=lineW type=range min=1 max=20 step=1 value=3></label>
+<br>
+<label>Tick height <input id=tickH type=range min=0.01 max=0.06 step=0.005 value=0.03></label>
+<br>
+<label>Label font size <input id=labelFont type=range min=0.02 max=0.06 step=0.005 value=0.04></label>
+<br>
+<label>Dot radius <input id=dotR type=range min=0.005 max=0.025 step=0.002 value=0.012></label>
+<br>
+<label>? size <input id=qSize type=range min=0.03 max=0.08 step=0.005 value=0.05></label>
+<br>
+<label>Palette <select id=palette>
+  <option value=bright>bright</option>
+  <option value=pastel>pastel</option>
+  <option value=warm>warm</option>
+  <option value=cool>cool</option>
+  <option value=neon>neon</option>
+</select></label>
+
+<br>
+<button id=reset type=button>🔄 Restore defaults</button>
+
+<hr>
+
+<canvas id=can title="Click to download" style="border:1px solid grey;cursor:pointer"></canvas>
+
+<script>
+// Display current value next to range inputs
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const span = document.createElement('span');
+  span.style.cssText = 'margin-left:1px;font-size:12px;color:#666';
+  span.textContent = r.value;
+  r.after(span);
+  r.addEventListener('input', () => span.textContent = r.value);
+});
+</script>
+<script>
+  const $ = id => document.getElementById(id);
+  const ctx = $('can').getContext('2d');
+  const NAME = 'number_line_drop';
+
+  const PALETTES = {
+    bright: ['#ff4040','#4090ff','#00aa40','#ffd800','#ff8c00','#9b59b6','#e91e90','#00bcd4'],
+    pastel: ['#ffb3ba','#bae1ff','#baffc9','#ffffba','#e8baff','#ffd9ba','#baffee','#ffbadc'],
+    warm:   ['#ff4040','#ff8c00','#ffd800','#ff6b6b','#e74c3c','#f39c12','#d35400','#c0392b'],
+    cool:   ['#4090ff','#00aa40','#00bcd4','#9b59b6','#3498db','#1abc9c','#2ecc71','#8e44ad'],
+    neon:   ['#ff0080','#00ff80','#8000ff','#ff8000','#0080ff','#80ff00','#ff0040','#40ff00']
+  };
+
+  function seededShuffle(arr, seed) {
+    const a = [...arr]; let s = Math.abs(seed) || 1;
+    for (let i = a.length - 1; i > 0; i--) {
+      s = (s * 1103515245 + 12345) & 0x7fffffff;
+      const j = s % (i + 1);
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  const DEF = {
+    w: 800, h: 600, code: '1234',
+    mask: '1111111111', lineY: 0.25, lineW: 3,
+    tickH: 0.03, labelFont: 0.04, dotR: 0.012,
+    qSize: 0.05, palette: 'bright'
+  };
+
+  function draw(){
+    const W = +$('w').value, H = +$('h').value;
+    $('can').width = W; $('can').height = H;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
+
+    const codeVal = $('code').value.replace(/\D/g,'') || '1234';
+    const N = Math.max(3, Math.min(5, codeVal.length));
+    const digitsArr = codeVal.padEnd(N,'0').slice(0,N).split('').map(Number);
+
+    // Mask: pad with '0' on right, trim to 10
+    const rawMask = $('mask').value;
+    const mask = (rawMask + '0000000000').slice(0, 10);
+
+    // Sizes from controls
+    const lineYFrac = +$('lineY').value;
+    const lineWPx   = +$('lineW').value * (W / 800);
+    const tickHPx   = +$('tickH').value * H;
+    const labelFontPx = +$('labelFont').value * H;
+    const dotRPx    = +$('dotR').value * Math.min(W, H);
+    const qSizePx   = +$('qSize').value * Math.min(W, H);
+    const palName   = $('palette').value;
+
+    // Colors: seeded shuffle
+    const seed = digitsArr.reduce((a, d, i) => a + d * Math.pow(10, i), 0) || 1;
+    const colors = seededShuffle(PALETTES[palName] || PALETTES.bright, seed);
+
+    // Layout
+    const marginX = W * 0.08;
+    const lineY = lineYFrac * H;
+    const lineX1 = marginX;
+    const lineX2 = W - marginX;
+    const lineLen = lineX2 - lineX1;
+
+    // ---- Draw number line ----
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = lineWPx;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(lineX1, lineY);
+    ctx.lineTo(lineX2, lineY);
+    ctx.stroke();
+
+    // Tick positions (0–9)
+    const tickX = [];
+    for (let i = 0; i < 10; i++) {
+      tickX.push(lineX1 + (i / 9) * lineLen);
+    }
+
+    // ---- Draw ticks ----
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = Math.max(1, lineWPx * 0.6);
+    for (let i = 0; i < 10; i++) {
+      ctx.beginPath();
+      ctx.moveTo(tickX[i], lineY - tickHPx);
+      ctx.lineTo(tickX[i], lineY + tickHPx);
+      ctx.stroke();
+    }
+
+    // ---- Draw labels ----
+    ctx.fillStyle = '#222';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.font = `bold ${labelFontPx}px sans-serif`;
+    for (let i = 0; i < 10; i++) {
+      if (mask[i] === '1') {
+        ctx.fillText(String(i), tickX[i], lineY - tickHPx - labelFontPx * 0.15);
+      }
+    }
+
+    // ---- Question mark boxes at bottom ----
+    const qY = H * 0.85;
+    // Evenly space N boxes centered in the canvas width
+    const qSpacing = lineLen / (N + 1);
+    const qCenters = [];
+    for (let j = 0; j < N; j++) {
+      qCenters.push(lineX1 + qSpacing * (j + 1));
+    }
+
+    // ---- Draw connector lines ----
+    ctx.lineWidth = Math.max(2, lineWPx * 0.8);
+    ctx.lineCap = 'round';
+    for (let j = 0; j < N; j++) {
+      const col = colors[j % colors.length];
+      const fromX = qCenters[j];
+      const fromY = qY - qSizePx; // top of the circle
+      const toX = tickX[digitsArr[j]];
+      const toY = lineY;
+
+      ctx.strokeStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      // Slightly curved line using a quadratic bezier
+      const cpX = (fromX + toX) / 2;
+      const cpY = (fromY + toY) / 2 - Math.abs(fromX - toX) * 0.15;
+      ctx.quadraticCurveTo(cpX, cpY, toX, toY);
+      ctx.stroke();
+    }
+
+    // ---- Draw connection dots on number line ----
+    for (let j = 0; j < N; j++) {
+      const col = colors[j % colors.length];
+      const toX = tickX[digitsArr[j]];
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(toX, lineY, dotRPx, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ---- Draw "?" circles at the bottom ----
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let j = 0; j < N; j++) {
+      const col = colors[j % colors.length];
+      // Filled colored circle
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(qCenters[j], qY, qSizePx, 0, Math.PI * 2);
+      ctx.fill();
+
+      // White "?" inside
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${qSizePx * 1.2}px sans-serif`;
+      ctx.fillText('?', qCenters[j], qY);
+    }
+  }
+
+  oninput = draw; draw();
+
+  function randCode(){
+    const n = Math.max(3, Math.min(5, ($('code').value.replace(/\D/g,'') || '1234').length));
+    const max = Math.pow(10, n);
+    $('code').value = (Math.random()*max|0).toString().padStart(n,'0');
+  }
+
+  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { if(b.dataset.t==='code'){ randCode(); draw(); } });
+
+  $('reset').onclick = () => {
+    for (const k in DEF){
+      const el = $(k);
+      if (!el) continue;
+      if (el.type === 'checkbox') el.checked = DEF[k];
+      else                        el.value   = DEF[k];
+    }
+    // Update range display spans
+    document.querySelectorAll('input[type=range]').forEach(r => {
+      const span = r.nextElementSibling;
+      if (span && span.tagName === 'SPAN') span.textContent = r.value;
+    });
+    draw();
+  };
+
+  $('can').onclick = () => {
+    const codeVal = $('code').value.replace(/\D/g,'') || '1234';
+    const n = Math.max(3, Math.min(5, codeVal.length));
+    const c = codeVal.padEnd(n,'0').slice(0,n);
+    const a = document.createElement('a');
+    a.download = `${NAME}_${c}.png`;
+    a.href = $('can').toDataURL();
+    a.click();
+    randCode(); draw();
+  };
+</script>
