@@ -60,6 +60,24 @@
   <input id=bendColor type=color value="#ff6600">
 </label><br>
 
+<br>
+<label><input id=sketchy type=checkbox> Sketchy mode</label><br>
+<label>Jitter amount
+  <input id=jitter type=range min=0 max=0.05 step=0.002 value=0.015>
+</label><br>
+
+<br>
+<label>Max rotation
+  <input id=maxRotation type=range min=0 max=180 step=5 value=0>
+</label><br>
+
+<label>Shape scale
+  <input id=shapeScale type=range min=0.3 max=1 step=0.05 value=1>
+</label><br>
+
+<label><input id=allowFlipH type=checkbox> Allow horizontal flip</label><br>
+<label><input id=allowFlipV type=checkbox> Allow vertical flip</label><br>
+
 <button id=reset type=button>🔄 Restore defaults</button>
 <button id=rerender type=button>Re-render</button>
 
@@ -87,7 +105,10 @@ const DEF = {
   w: 1000, h: 400, code: '1234',
   thick: 0.06, padding: 0.12, frameOp: 0.15, frameRound: 0.08,
   lineColor: '#222222', qmsize: 0.12, answerMask: '0000',
-  bendMask: '0000', bendRadius: 0.05, bendThick: 0.012, bendColor: '#ff6600'
+  bendMask: '0000', bendRadius: 0.05, bendThick: 0.012, bendColor: '#ff6600',
+  sketchy: false, jitter: 0.015,
+  maxRotation: 0, shapeScale: 1,
+  allowFlipH: false, allowFlipV: false
 };
 
 // Pre-designed path patterns for each digit (0-9)
@@ -165,7 +186,13 @@ function draw() {
     qmFrac: +$('qmsize').value,
     bendRadius: +$('bendRadius').value,
     bendThick: +$('bendThick').value,
-    bendColor: $('bendColor').value
+    bendColor: $('bendColor').value,
+    sketchy: $('sketchy').checked,
+    jitter: +$('jitter').value,
+    maxRotation: +$('maxRotation').value,
+    shapeScale: +$('shapeScale').value,
+    allowFlipH: $('allowFlipH').checked,
+    allowFlipV: $('allowFlipV').checked
   };
 
   // Vertical separators
@@ -181,6 +208,23 @@ function draw() {
   digits.forEach((d, i) => drawScene(i * sceneW, 0, sceneW, H, d, opts, answerMask[i] === '1', bendMask[i] === '1'));
 }
 
+function jitterPoints(points, jAmt) {
+  return points.map((p, i) => {
+    const mult = (i === 0 || i === points.length - 1) ? 0.5 : 1.0;
+    return [
+      p[0] + (Math.random() - 0.5) * 2 * jAmt * mult,
+      p[1] + (Math.random() - 0.5) * 2 * jAmt * mult
+    ];
+  });
+}
+
+function tracePath(pts) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.stroke();
+}
+
 function drawScene(x0, y0, W, H, digit, o, showAnswer, showBendMarkers) {
   const pad = o.padding * Math.min(W, H);
   const qmH = H * o.qmFrac;
@@ -191,6 +235,8 @@ function drawScene(x0, y0, W, H, digit, o, showAnswer, showBendMarkers) {
   const frameW = W - 2 * pad;
   const frameH = H - 2 * pad - qmH - qmGap;
   const radius = o.frameRound * Math.min(frameW, frameH);
+  const frameCX = frameX + frameW / 2;
+  const frameCY = frameY + frameH / 2;
 
   // Draw frame
   if (o.frameOp > 0) {
@@ -239,38 +285,56 @@ function drawScene(x0, y0, W, H, digit, o, showAnswer, showBendMarkers) {
     points.push([px, py]);
   }
 
-  // Draw the path
+  const unit = Math.min(W, H);
+  const lw = o.thick * unit;
+
+  // Set up transforms: clip to frame, then rotate/scale/flip around center
   ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(frameX, frameY, frameW, frameH, radius);
+  ctx.clip();
+
+  ctx.translate(frameCX, frameCY);
+  if (o.maxRotation > 0) {
+    const angle = (Math.random() * 2 - 1) * o.maxRotation * Math.PI / 180;
+    ctx.rotate(angle);
+  }
+  const ss = o.shapeScale;
+  let flipX = 1, flipY = 1;
+  if (o.allowFlipH && Math.random() < 0.5) flipX = -1;
+  if (o.allowFlipV && Math.random() < 0.5) flipY = -1;
+  ctx.scale(ss * flipX, ss * flipY);
+  ctx.translate(-frameCX, -frameCY);
+
+  // Draw the path (with optional sketchy jitter + double pass)
   ctx.strokeStyle = o.lineColor;
-  ctx.lineWidth = o.thick * Math.min(W, H);
+  ctx.lineWidth = lw;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  ctx.beginPath();
-  ctx.moveTo(points[0][0], points[0][1]);
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(points[i][0], points[i][1]);
+  if (o.sketchy) {
+    const jAmt = o.jitter * unit;
+    tracePath(jitterPoints(points, jAmt));
+    tracePath(jitterPoints(points, jAmt));
+  } else {
+    tracePath(points);
   }
-  ctx.stroke();
-  ctx.restore();
 
-  // Draw bend markers (ovals around bend points, excluding endpoints)
+  // Draw bend markers (inside transforms so they match the polyline)
   if (showBendMarkers && points.length > 2) {
-    ctx.save();
     ctx.strokeStyle = o.bendColor;
-    ctx.lineWidth = o.bendThick * Math.min(W, H);
-    const markerR = o.bendRadius * Math.min(W, H);
-
-    // Only mark interior points (bends), not endpoints
+    ctx.lineWidth = o.bendThick * unit;
+    const markerR = o.bendRadius * unit;
     for (let i = 1; i < points.length - 1; i++) {
       ctx.beginPath();
       ctx.arc(points[i][0], points[i][1], markerR, 0, Math.PI * 2);
       ctx.stroke();
     }
-    ctx.restore();
   }
 
-  // Draw question mark or answer
+  ctx.restore();
+
+  // Draw question mark or answer (outside transforms)
   const qmY = frameY + frameH + qmGap;
   const fontSz = o.qmFrac * H;
   ctx.save();
