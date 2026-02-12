@@ -44,6 +44,34 @@
   <input id=centerSize type=range min=0.10 max=0.35 step=0.01 value=0.20>
 </label><br>
 
+<label>Petal shape
+  <select id=petalShape>
+    <option value="teardrop" selected>Teardrop</option>
+    <option value="round">Round</option>
+    <option value="pointed">Pointed</option>
+    <option value="heart">Heart</option>
+  </select>
+</label><br>
+
+<label>Petal fill mode
+  <select id=petalFillMode>
+    <option value="solid" selected>Solid</option>
+    <option value="outlined">Outlined</option>
+    <option value="dualtone">Dualtone</option>
+  </select>
+</label><br>
+
+<label>Pattern overlay
+  <select id=patternOverlay>
+    <option value="none" selected>None</option>
+    <option value="stripes">Stripes</option>
+    <option value="dots">Dots</option>
+    <option value="crosshatch">Crosshatch</option>
+  </select>
+</label><br>
+
+<label><input id=roundedTips type=checkbox> Rounded petal tips</label><br>
+
 <button id=reset type=button>Restore defaults</button>
 <button id=rerender type=button>Re-render</button>
 
@@ -74,7 +102,11 @@ const DEF = {
   rotation: 0,
   refSize: 0.40,
   centerSize: 0.20,
-  colorMode: 'ref_only'
+  colorMode: 'ref_only',
+  petalShape: 'teardrop',
+  petalFillMode: 'solid',
+  patternOverlay: 'none',
+  roundedTips: false
 };
 
 const COLORS = [
@@ -107,10 +139,33 @@ function regenerateColors() {
 }
 
 /* ------------------------------------------------
-   drawPetal(cx, cy, angle, innerR, outerR, petalW, color)
-   Draws a single teardrop petal radiating outward from (cx,cy).
+   lightenColor(hex, amount)
+   Mixes a hex color toward white by given amount (0=original, 1=white).
+   Handles both 3-char and 6-char hex.
    ------------------------------------------------ */
-function drawPetal(cx, cy, angle, innerR, outerR, petalW, color) {
+function lightenColor(hex, amount) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const nr = Math.round(r + (255 - r) * amount);
+  const ng = Math.round(g + (255 - g) * amount);
+  const nb = Math.round(b + (255 - b) * amount);
+  return '#' + [nr, ng, nb].map(c => c.toString(16).padStart(2, '0')).join('');
+}
+
+/* ------------------------------------------------
+   drawPetal(cx, cy, angle, innerR, outerR, petalW, color, radius)
+   Draws a single petal radiating outward from (cx,cy).
+   Supports shape, fill mode, pattern overlay, and rounded tips.
+   ------------------------------------------------ */
+function drawPetal(cx, cy, angle, innerR, outerR, petalW, color, radius) {
+  const shape    = $('petalShape').value;
+  const fillMode = $('petalFillMode').value;
+  const overlay  = $('patternOverlay').value;
+  const rounded  = $('roundedTips').checked;
+
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle);
@@ -118,22 +173,143 @@ function drawPetal(cx, cy, angle, innerR, outerR, petalW, color) {
   const baseY = -innerR;
   const tipY  = -outerR;
   const len   = outerR - innerR;
-  const widestY = baseY - len * 0.60;
-  const cpX = petalW * 1.15;
 
-  ctx.beginPath();
-  ctx.moveTo(0, baseY);
-  ctx.quadraticCurveTo(cpX, widestY, 0, tipY);
-  ctx.quadraticCurveTo(-cpX, widestY, 0, baseY);
-  ctx.closePath();
+  function buildPath() {
+    ctx.beginPath();
 
-  ctx.fillStyle = color;
-  ctx.fill();
+    if (shape === 'round') {
+      // Elliptical petal (inherently rounded)
+      const centerY = -(innerR + outerR) / 2;
+      const rx = petalW;
+      const ry = (outerR - innerR) / 2;
+      ctx.ellipse(0, centerY, rx, ry, 0, 0, Math.PI * 2);
+
+    } else if (shape === 'pointed') {
+      const midY = baseY - len * 0.5;
+      ctx.moveTo(0, baseY);
+      ctx.lineTo(petalW * 0.6, midY);
+      if (rounded) {
+        const rr = petalW * 0.12;
+        ctx.lineTo(rr, tipY + rr);
+        ctx.arc(0, tipY + rr, rr, 0, Math.PI, true);
+        ctx.lineTo(-petalW * 0.6, midY);
+      } else {
+        ctx.lineTo(0, tipY);
+        ctx.lineTo(-petalW * 0.6, midY);
+      }
+      ctx.closePath();
+
+    } else if (shape === 'heart') {
+      const indentY = baseY - len * 0.15;
+      const lobeY   = baseY - len * 0.55;
+      const lobeCpY = baseY - len * 0.75;
+
+      ctx.moveTo(0, baseY);
+      ctx.quadraticCurveTo(petalW * 0.2, indentY, petalW * 0.8, lobeY);
+      if (rounded) {
+        const rr = petalW * 0.15;
+        ctx.quadraticCurveTo(petalW * 0.9, lobeCpY, rr, tipY + rr);
+        ctx.arc(0, tipY + rr, rr, 0, Math.PI, true);
+        ctx.quadraticCurveTo(-petalW * 0.9, lobeCpY, -petalW * 0.8, lobeY);
+      } else {
+        ctx.quadraticCurveTo(petalW * 0.9, lobeCpY, 0, tipY);
+        ctx.quadraticCurveTo(-petalW * 0.9, lobeCpY, -petalW * 0.8, lobeY);
+      }
+      ctx.quadraticCurveTo(-petalW * 0.2, indentY, 0, baseY);
+      ctx.closePath();
+
+    } else {
+      // Teardrop (default)
+      const widestY = baseY - len * 0.60;
+      const cpX = petalW * 1.15;
+
+      if (rounded) {
+        const rr = petalW * 0.2;
+        ctx.moveTo(0, baseY);
+        ctx.quadraticCurveTo(cpX, widestY, rr, tipY + rr);
+        ctx.arc(0, tipY + rr, rr, 0, Math.PI, true);
+        ctx.quadraticCurveTo(-cpX, widestY, 0, baseY);
+      } else {
+        ctx.moveTo(0, baseY);
+        ctx.quadraticCurveTo(cpX, widestY, 0, tipY);
+        ctx.quadraticCurveTo(-cpX, widestY, 0, baseY);
+      }
+      ctx.closePath();
+    }
+  }
+
+  // Draw petal with fill mode
+  buildPath();
+
+  if (fillMode === 'outlined') {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = radius * 0.03;
+    ctx.stroke();
+  } else if (fillMode === 'dualtone') {
+    ctx.fillStyle = lightenColor(color, 0.45);
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = radius * 0.03;
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  // Pattern overlay (clipped to petal shape)
+  if (overlay !== 'none') {
+    ctx.save();
+    buildPath();
+    ctx.clip();
+
+    const patternColor = lightenColor(color, 0.3);
+
+    if (overlay === 'stripes') {
+      const spacing = petalW * 0.3;
+      ctx.strokeStyle = patternColor;
+      ctx.lineWidth = 2;
+      for (let y = -outerR; y <= -innerR; y += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(-petalW * 1.5, y);
+        ctx.lineTo(petalW * 1.5, y);
+        ctx.stroke();
+      }
+    } else if (overlay === 'dots') {
+      const dotRadius = petalW * 0.08;
+      const spacing = petalW * 0.3;
+      ctx.fillStyle = patternColor;
+      for (let y = -outerR; y <= -innerR; y += spacing) {
+        for (let x = -petalW * 1.5; x <= petalW * 1.5; x += spacing) {
+          ctx.beginPath();
+          ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    } else if (overlay === 'crosshatch') {
+      const spacing = petalW * 0.3;
+      ctx.strokeStyle = patternColor;
+      ctx.lineWidth = 1.5;
+      for (let offset = -outerR * 3; offset <= outerR * 3; offset += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(-petalW * 2, offset - petalW * 2);
+        ctx.lineTo(petalW * 2, offset + petalW * 2);
+        ctx.stroke();
+      }
+      for (let offset = -outerR * 3; offset <= outerR * 3; offset += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(-petalW * 2, offset + petalW * 2);
+        ctx.lineTo(petalW * 2, offset - petalW * 2);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
 
   ctx.restore();
 }
 
-const GRAY = '#ccc';
+const GRAY = '#cccccc';
 
 /* ------------------------------------------------
    getColorForPetal(petalIndex, isRef, markerIndex, mode)
@@ -174,7 +350,7 @@ function drawFlower(cx, cy, radius, rotOffset, opts) {
   for (let i = 0; i < 10; i++) {
     const angle = rotRad + (i * 36) * Math.PI / 180;
     const color = getColorForPetal(i, opts.isRef, opts.markerIndex, mode);
-    drawPetal(cx, cy, angle, innerR, outerR, petalW, color);
+    drawPetal(cx, cy, angle, innerR, outerR, petalW, color, radius);
   }
 
   // Draw center circle
@@ -337,6 +513,12 @@ document.querySelectorAll('input[type=range]').forEach(el => {
 
 // Select inputs
 $('colorMode').onchange = draw;
+$('petalShape').onchange = draw;
+$('petalFillMode').onchange = draw;
+$('patternOverlay').onchange = draw;
+
+// Checkbox
+$('roundedTips').onchange = draw;
 
 // Size inputs
 $('w').oninput = draw;
@@ -347,7 +529,11 @@ $('reset').onclick = () => {
   for (const k in DEF) {
     const el = $(k);
     if (!el) continue;
-    el.value = DEF[k];
+    if (el.type === 'checkbox') {
+      el.checked = DEF[k];
+    } else {
+      el.value = DEF[k];
+    }
   }
   document.querySelectorAll('input[type=range]').forEach(r => {
     const span = r.nextElementSibling;
