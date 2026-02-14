@@ -10,7 +10,7 @@ Work in the directory of this puzzle.
 
 # stage 1: ideation on tweaking the puzzle visual look & feel
 
-In planning/variations_ideas.md, write down 19 ideas on how to change the puzzle visual look so feels a little different. Apply techniques from docs/brainstorming_techniques.md, using mindmap extensively as your main one, identifying which aspects of the puzzle you can tweak.
+In planning/variations_ideas.md, write down 19 ideas on how to change the puzzle visual look so feels different. Apply techniques from docs/brainstorming_techniques.md, using mindmap extensively as your main one, identifying which aspects of the puzzle you can tweak.
 
 Do not limit yourself and brainstorm everything that comes to mind on changing every single aspect of the puzzle, or multiple at once.
 
